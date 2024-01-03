@@ -9,12 +9,19 @@ void General_Resource::add_max_res(int p_value) {
 }
 
 void General_Resource::sub_max_res(int p_value) {
-    max_resource -= abs(p_value);
-    
+    if (max_resource - abs(p_value) > min_resource) {
+        max_resource -= abs(p_value);
+    } else {
+        max_resource = min_resource;
+    }
 }
 
 void General_Resource::add_min_res(int p_value) {
-    min_resource += abs(p_value);
+    if (min_resource += abs(p_value < max_resource)) {
+        min_resource += abs(p_value);
+    } else {
+        min_resource = max_resource;
+    }
 }
 
 void General_Resource::sub_min_res(int p_value) {
