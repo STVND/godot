@@ -4,17 +4,17 @@
 
 #include "core/object/class_db.h"
 #include "general_resource.h"
-#include "lazy_state"
+#include "lazy_state.h"
 
-void initialize_general_resource_module(ModuleInitializationLevel p_level) {
+void initialize_simple_extension_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 			return;
 	}
 	ClassDB::register_class<General_Resource>();
-	ClassDB::register_class<lazy_state>();
+	ClassDB::register_class<Lazy_State>();
 }
 
-void uninitialize_general_resource_module(ModuleInitializationLevel p_level) {
+void uninitialize_simple_extension_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 			return;
 	}
