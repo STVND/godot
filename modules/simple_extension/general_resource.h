@@ -10,7 +10,6 @@ class General_Resource: public RefCounted {
     GDCLASS(General_Resource, RefCounted);
 
     int max_resource;
-    int min_resource;
     int current_resource;
 
 protected:
@@ -19,16 +18,12 @@ protected:
 public:
     void add_max_res(int p_value);
     void sub_max_res(int p_value);
-    void add_min_res(int p_value);
-    void sub_min_res(int p_value);
     void set_max_res(int p_value);
-    void set_min_res(int p_value);
     void set_res(int p_value);
     void sub_res(int p_value);
     void add_res(int p_value);
     int get_res();
     int get_max_res();
-    int get_min_res();
 
     General_Resource();
 
