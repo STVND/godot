@@ -95,6 +95,10 @@ class ProjectSettingsEditor : public AcceptDialog {
 	void _add_setting();
 	void _delete_setting();
 
+	void _tabs_tab_changed(int p_tab);
+	void _focus_current_search_box();
+	void _focus_current_path_box();
+
 	void _editor_restart_request();
 	void _editor_restart();
 	void _editor_restart_close();
@@ -108,9 +112,6 @@ class ProjectSettingsEditor : public AcceptDialog {
 	void _action_reordered(const String &p_action_name, const String &p_relative_to, bool p_before);
 	void _update_action_map_editor();
 	void _update_theme();
-
-	void _input_filter_focused();
-	void _input_filter_unfocused();
 
 protected:
 	void _notification(int p_what);
