@@ -93,6 +93,7 @@ const Vector<String> classes_with_csharp_differences = {
 	"PackedStringArray",
 	"PackedVector2Array",
 	"PackedVector3Array",
+	"PackedVector4Array",
 	"Variant",
 };
 #endif
@@ -107,6 +108,7 @@ const Vector<String> packed_array_types = {
 	"PackedStringArray",
 	"PackedVector2Array",
 	"PackedVector3Array",
+	"PackedVector4Array",
 };
 
 // TODO: this is sometimes used directly as doc->something, other times as EditorHelp::get_doc_data(), which is thread-safe.
@@ -287,6 +289,7 @@ void EditorHelp::_class_desc_select(const String &p_select) {
 		if (table->has(link)) {
 			// Found in the current page.
 			if (class_desc->is_ready()) {
+				emit_signal(SNAME("request_save_history"));
 				class_desc->scroll_to_paragraph((*table)[link]);
 			} else {
 				scroll_to = (*table)[link];
@@ -3077,6 +3080,7 @@ void EditorHelp::_bind_methods() {
 	ClassDB::bind_method("_help_callback", &EditorHelp::_help_callback);
 
 	ADD_SIGNAL(MethodInfo("go_to_help"));
+	ADD_SIGNAL(MethodInfo("request_save_history"));
 }
 
 void EditorHelp::init_gdext_pointers() {

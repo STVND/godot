@@ -1568,34 +1568,7 @@ void FileSystemDock::_update_resource_paths_after_move(const HashMap<String, Str
 		if (I) {
 			ResourceUID::get_singleton()->set_id(I->value, new_path);
 		}
-
-		ScriptServer::remove_global_class_by_path(old_path);
-
-		int index = -1;
-		EditorFileSystemDirectory *efd = EditorFileSystem::get_singleton()->find_file(old_path, &index);
-
-		if (!efd || index < 0) {
-			// The file was removed.
-			continue;
-		}
-
-		// Update paths for global classes.
-		if (!efd->get_file_script_class_name(index).is_empty()) {
-			String lang;
-			for (int i = 0; i < ScriptServer::get_language_count(); i++) {
-				if (ScriptServer::get_language(i)->handles_global_class_type(efd->get_file_type(index))) {
-					lang = ScriptServer::get_language(i)->get_name();
-					break;
-				}
-			}
-			if (lang.is_empty()) {
-				continue; // No language found that can handle this global class.
-			}
-
-			ScriptServer::add_global_class(efd->get_file_script_class_name(index), efd->get_file_script_class_extends(index), lang, new_path);
-			EditorNode::get_editor_data().script_class_set_icon_path(efd->get_file_script_class_name(index), efd->get_file_script_class_icon_path(index));
-			EditorNode::get_editor_data().script_class_set_name(new_path, efd->get_file_script_class_name(index));
-		}
+		EditorFileSystem::get_singleton()->register_global_class_script(old_path, new_path);
 	}
 
 	// Rename all resources loaded, be it subresources or actual resources.
@@ -2391,6 +2364,12 @@ void FileSystemDock::_file_option(int p_option, const Vector<String> &p_selected
 			_update_tree(get_uncollapsed_paths());
 			if (current_path == "Favorites") {
 				_update_file_list(true);
+			}
+		} break;
+
+		case FILE_SHOW_IN_FILESYSTEM: {
+			if (!p_selected.is_empty()) {
+				navigate_to_path(p_selected[0]);
 			}
 		} break;
 
@@ -3286,8 +3265,33 @@ void FileSystemDock::_file_and_folders_fill_popup(PopupMenu *p_popup, const Vect
 	if (p_paths.size() == 1) {
 		const String &fpath = p_paths[0];
 
+		bool added_separator = false;
+
+		if (favorites_list.has(fpath)) {
+			TreeItem *favorites_item = tree->get_root()->get_first_child();
+			TreeItem *cursor_item = tree->get_selected();
+			bool is_item_in_favorites = false;
+			while (cursor_item != nullptr) {
+				if (cursor_item == favorites_item) {
+					is_item_in_favorites = true;
+					break;
+				}
+
+				cursor_item = cursor_item->get_parent();
+			}
+
+			if (is_item_in_favorites) {
+				p_popup->add_separator();
+				added_separator = true;
+				p_popup->add_icon_item(get_editor_theme_icon(SNAME("ShowInFileSystem")), TTR("Show in FileSystem"), FILE_SHOW_IN_FILESYSTEM);
+			}
+		}
+
 #if !defined(ANDROID_ENABLED) && !defined(WEB_ENABLED)
-		p_popup->add_separator();
+		if (!added_separator) {
+			p_popup->add_separator();
+			added_separator = true;
+		}
 
 		// Opening the system file manager is not supported on the Android and web editors.
 		const bool is_directory = fpath.ends_with("/");
@@ -4153,6 +4157,7 @@ FileSystemDock::FileSystemDock() {
 
 	ProjectSettings::get_singleton()->connect("settings_changed", callable_mp(this, &FileSystemDock::_project_settings_changed));
 	add_resource_tooltip_plugin(memnew(EditorTextureTooltipPlugin));
+	add_resource_tooltip_plugin(memnew(EditorAudioStreamTooltipPlugin));
 }
 
 FileSystemDock::~FileSystemDock() {

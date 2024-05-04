@@ -1746,6 +1746,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		}
 	}
 
+	OS::get_singleton()->_in_editor = editor;
 	if (globals->setup(project_path, main_pack, upwards, editor) == OK) {
 #ifdef TOOLS_ENABLED
 		found_project = true;
@@ -2341,9 +2342,12 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	Engine::get_singleton()->set_max_physics_steps_per_frame(GLOBAL_DEF_BASIC(PropertyInfo(Variant::INT, "physics/common/max_physics_steps_per_frame", PROPERTY_HINT_RANGE, "1,100,1"), 8));
 	Engine::get_singleton()->set_physics_jitter_fix(GLOBAL_DEF("physics/common/physics_jitter_fix", 0.5));
 	Engine::get_singleton()->set_max_fps(GLOBAL_DEF(PropertyInfo(Variant::INT, "application/run/max_fps", PROPERTY_HINT_RANGE, "0,1000,1"), 0));
-	Engine::get_singleton()->set_audio_output_latency(GLOBAL_DEF_RST(PropertyInfo(Variant::INT, "audio/driver/output_latency", PROPERTY_HINT_RANGE, "1,100,1"), 15));
+
+	GLOBAL_DEF_RST(PropertyInfo(Variant::INT, "audio/driver/output_latency", PROPERTY_HINT_RANGE, "1,100,1"), 15);
 	// Use a safer default output_latency for web to avoid audio cracking on low-end devices, especially mobile.
 	GLOBAL_DEF_RST("audio/driver/output_latency.web", 50);
+
+	Engine::get_singleton()->set_audio_output_latency(GLOBAL_GET("audio/driver/output_latency"));
 
 	GLOBAL_DEF("debug/settings/stdout/print_fps", false);
 	GLOBAL_DEF("debug/settings/stdout/print_gpu_profile", false);
@@ -2401,6 +2405,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 
 	// OpenXR project extensions settings.
 	GLOBAL_DEF_BASIC("xr/openxr/extensions/hand_tracking", true);
+	GLOBAL_DEF_RST_BASIC("xr/openxr/extensions/hand_interaction_profile", false);
 	GLOBAL_DEF_BASIC("xr/openxr/extensions/eye_gaze_interaction", false);
 
 #ifdef TOOLS_ENABLED
@@ -3178,6 +3183,7 @@ int Main::start() {
 
 #ifdef TOOLS_ENABLED
 	String doc_tool_path;
+	bool doc_tool_implicit_cwd = false;
 	BitField<DocTools::GenerateFlags> gen_flags;
 	String _export_preset;
 	bool export_debug = false;
@@ -3248,6 +3254,7 @@ int Main::start() {
 				if (doc_tool_path.begins_with("-")) {
 					// Assuming other command line arg, so default to cwd.
 					doc_tool_path = ".";
+					doc_tool_implicit_cwd = true;
 					parsed_pair = false;
 				}
 #ifdef MODULE_GDSCRIPT_ENABLED
@@ -3278,6 +3285,7 @@ int Main::start() {
 		// Handle case where no path is given to --doctool.
 		else if (args[i] == "--doctool") {
 			doc_tool_path = ".";
+			doc_tool_implicit_cwd = true;
 		}
 #endif
 	}
@@ -3304,6 +3312,11 @@ int Main::start() {
 		{
 			Ref<DirAccess> da = DirAccess::open(doc_tool_path);
 			ERR_FAIL_COND_V_MSG(da.is_null(), EXIT_FAILURE, "Argument supplied to --doctool must be a valid directory path.");
+			// Ensure that doctool is running in the root dir, but only if
+			// user did not manually specify a path as argument.
+			if (doc_tool_implicit_cwd) {
+				ERR_FAIL_COND_V_MSG(!da->dir_exists("doc"), EXIT_FAILURE, "--doctool must be run from the Godot repository's root folder, or specify a path that points there.");
+			}
 		}
 
 #ifndef MODULE_MONO_ENABLED
@@ -3632,7 +3645,7 @@ int Main::start() {
 				}
 			}
 
-			if (doc_tool_path == ".") {
+			if (doc_tool_implicit_cwd) {
 				doc_tool_path = "./docs";
 			}
 
