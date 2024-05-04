@@ -19,6 +19,8 @@ public:
     void add_max_res(int p_value);
     void sub_max_res(int p_value);
     void set_max_res(int p_value);
+    void add_res_clamped(int p_value);
+    void sub_res_clamped(int p_value);
     void set_res(int p_value);
     void sub_res(int p_value);
     void add_res(int p_value);

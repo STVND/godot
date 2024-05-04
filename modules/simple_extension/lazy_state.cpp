@@ -24,7 +24,6 @@ bool Lazy_State::state_changed() {
 
 void Lazy_State::_bind_methods() {
 
-    ClassDB::bind_method(D_METHOD("set_condition", "value"), &Lazy_State::set_condition);
     ClassDB::bind_method(D_METHOD("update_state"), &Lazy_State::update_state);
     ClassDB::bind_method(D_METHOD("return_state"), &Lazy_State::is_active);
     ClassDB::bind_method(D_METHOD("state_changed"), &Lazy_State::state_changed);
