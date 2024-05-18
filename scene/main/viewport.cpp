@@ -54,7 +54,6 @@
 #include "scene/resources/mesh.h"
 #include "scene/resources/text_line.h"
 #include "scene/resources/world_2d.h"
-#include "scene/scene_string_names.h"
 #include "servers/audio_server.h"
 #include "servers/rendering/rendering_server_globals.h"
 
@@ -81,7 +80,7 @@ void ViewportTexture::setup_local_to_scene() {
 	if (loc_scene->is_ready()) {
 		_setup_local_to_scene(loc_scene);
 	} else {
-		loc_scene->connect(SNAME("ready"), callable_mp(this, &ViewportTexture::_setup_local_to_scene).bind(loc_scene), CONNECT_ONE_SHOT);
+		loc_scene->connect(SceneStringName(ready), callable_mp(this, &ViewportTexture::_setup_local_to_scene).bind(loc_scene), CONNECT_ONE_SHOT);
 		vp_pending = true;
 	}
 }
@@ -1465,7 +1464,7 @@ void Viewport::_gui_show_tooltip() {
 		gui.tooltip_label->set_theme_type_variation(SNAME("TooltipLabel"));
 		gui.tooltip_label->set_text(gui.tooltip_text);
 		base_tooltip = gui.tooltip_label;
-		panel->connect("mouse_entered", callable_mp(this, &Viewport::_gui_cancel_tooltip));
+		panel->connect(SceneStringName(mouse_entered), callable_mp(this, &Viewport::_gui_cancel_tooltip));
 	}
 
 	base_tooltip->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
@@ -2374,7 +2373,7 @@ void Viewport::_gui_hide_control(Control *p_control) {
 	if (gui.key_focus == p_control) {
 		gui_release_focus();
 	}
-	if (gui.mouse_over == p_control || gui.mouse_over_hierarchy.find(p_control) >= 0) {
+	if (gui.mouse_over == p_control || gui.mouse_over_hierarchy.has(p_control)) {
 		_drop_mouse_over(p_control->get_parent_control());
 	}
 	if (gui.drag_mouse_over == p_control) {
@@ -2394,7 +2393,7 @@ void Viewport::_gui_remove_control(Control *p_control) {
 	if (gui.key_focus == p_control) {
 		gui.key_focus = nullptr;
 	}
-	if (gui.mouse_over == p_control || gui.mouse_over_hierarchy.find(p_control) >= 0) {
+	if (gui.mouse_over == p_control || gui.mouse_over_hierarchy.has(p_control)) {
 		_drop_mouse_over(p_control->get_parent_control());
 	}
 	if (gui.drag_mouse_over == p_control) {

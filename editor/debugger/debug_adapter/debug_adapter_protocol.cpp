@@ -967,7 +967,7 @@ void DebugAdapterProtocol::on_debug_stack_frame_var(const Array &p_data) {
 	List<int> scope_ids = stackframe_list.find(frame)->value;
 	ERR_FAIL_COND(scope_ids.size() != 3);
 	ERR_FAIL_INDEX(stack_var.type, 3);
-	int var_id = scope_ids[stack_var.type];
+	int var_id = scope_ids.get(stack_var.type);
 
 	DAP::Variable variable;
 
@@ -1043,7 +1043,7 @@ DebugAdapterProtocol::DebugAdapterProtocol() {
 
 	reset_ids();
 
-	EditorRunBar::get_singleton()->get_pause_button()->connect("pressed", callable_mp(this, &DebugAdapterProtocol::on_debug_paused));
+	EditorRunBar::get_singleton()->get_pause_button()->connect(SceneStringName(pressed), callable_mp(this, &DebugAdapterProtocol::on_debug_paused));
 
 	EditorDebuggerNode *debugger_node = EditorDebuggerNode::get_singleton();
 	debugger_node->connect("breakpoint_toggled", callable_mp(this, &DebugAdapterProtocol::on_debug_breakpoint_toggled));

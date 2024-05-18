@@ -1391,7 +1391,7 @@ void TextureStorage::texture_debug_usage(List<RS::TextureInfo> *r_info) {
 		tinfo.format = t->format;
 		tinfo.width = t->alloc_width;
 		tinfo.height = t->alloc_height;
-		tinfo.depth = 0;
+		tinfo.depth = t->depth;
 		tinfo.bytes = t->total_data_size;
 		r_info->push_back(tinfo);
 	}
@@ -2312,9 +2312,11 @@ void TextureStorage::_clear_render_target(RenderTarget *rt) {
 
 	if (rt->backbuffer_fbo != 0) {
 		glDeleteFramebuffers(1, &rt->backbuffer_fbo);
+		rt->backbuffer_fbo = 0;
+	}
+	if (rt->backbuffer != 0) {
 		GLES3::Utilities::get_singleton()->texture_free_data(rt->backbuffer);
 		rt->backbuffer = 0;
-		rt->backbuffer_fbo = 0;
 	}
 	if (rt->backbuffer_depth != 0) {
 		GLES3::Utilities::get_singleton()->texture_free_data(rt->backbuffer_depth);
