@@ -138,6 +138,12 @@ void Node::_notification(int p_notification) {
 
 			get_tree()->nodes_in_tree_count++;
 			orphan_node_count--;
+
+			// Allow physics interpolated nodes to automatically reset when added to the tree
+			// (this is to save the user from doing this manually each time).
+			if (get_tree()->is_physics_interpolation_enabled()) {
+				_set_physics_interpolation_reset_requested(true);
+			}
 		} break;
 
 		case NOTIFICATION_EXIT_TREE: {
@@ -174,6 +180,12 @@ void Node::_notification(int p_notification) {
 			if (data.path_cache) {
 				memdelete(data.path_cache);
 				data.path_cache = nullptr;
+			}
+		} break;
+
+		case NOTIFICATION_PAUSED: {
+			if (is_physics_interpolated_and_enabled() && is_inside_tree()) {
+				reset_physics_interpolation();
 			}
 		} break;
 
@@ -427,6 +439,18 @@ void Node::_propagate_physics_interpolated(bool p_interpolated) {
 	data.blocked++;
 	for (KeyValue<StringName, Node *> &K : data.children) {
 		K.value->_propagate_physics_interpolated(p_interpolated);
+	}
+	data.blocked--;
+}
+
+void Node::_propagate_physics_interpolation_reset_requested(bool p_requested) {
+	if (is_physics_interpolated()) {
+		data.physics_interpolation_reset_requested = p_requested;
+	}
+
+	data.blocked++;
+	for (KeyValue<StringName, Node *> &K : data.children) {
+		K.value->_propagate_physics_interpolation_reset_requested(p_requested);
 	}
 	data.blocked--;
 }
@@ -884,15 +908,23 @@ void Node::set_physics_interpolation_mode(PhysicsInterpolationMode p_mode) {
 	}
 
 	// If swapping from interpolated to non-interpolated, use this as an extra means to cause a reset.
-	if (is_physics_interpolated() && !interpolate) {
-		reset_physics_interpolation();
+	if (is_physics_interpolated() && !interpolate && is_inside_tree()) {
+		propagate_notification(NOTIFICATION_RESET_PHYSICS_INTERPOLATION);
 	}
 
 	_propagate_physics_interpolated(interpolate);
 }
 
 void Node::reset_physics_interpolation() {
-	propagate_notification(NOTIFICATION_RESET_PHYSICS_INTERPOLATION);
+	if (is_inside_tree()) {
+		propagate_notification(NOTIFICATION_RESET_PHYSICS_INTERPOLATION);
+
+		// If `reset_physics_interpolation()` is called explicitly by the user
+		// (e.g. from scripts) then we prevent deferred auto-resets taking place.
+		// The user is trusted to call reset in the right order, and auto-reset
+		// will interfere with their control of prev / curr, so should be turned off.
+		_propagate_physics_interpolation_reset_requested(false);
+	}
 }
 
 bool Node::_is_enabled() const {
@@ -2583,6 +2615,7 @@ void Node::get_storable_properties(HashSet<StringName> &r_storable_properties) c
 }
 
 String Node::to_string() {
+	// Keep this method in sync with `Object::to_string`.
 	ERR_THREAD_GUARD_V(String());
 	if (get_script_instance()) {
 		bool valid;
@@ -2591,7 +2624,12 @@ String Node::to_string() {
 			return ret;
 		}
 	}
-
+	if (_get_extension() && _get_extension()->to_string) {
+		String ret;
+		GDExtensionBool is_valid;
+		_get_extension()->to_string(_get_extension_instance(), &is_valid, &ret);
+		return ret;
+	}
 	return (get_name() ? String(get_name()) + ":" : "") + Object::to_string();
 }
 
@@ -2771,11 +2809,13 @@ Node *Node::duplicate(int p_flags) const {
 	ERR_THREAD_GUARD_V(nullptr);
 	Node *dupe = _duplicate(p_flags);
 
-	if (dupe && (p_flags & DUPLICATE_SIGNALS)) {
-		_duplicate_signals(this, dupe);
-	}
+	ERR_FAIL_NULL_V_MSG(dupe, nullptr, "Failed to duplicate node.");
 
 	_duplicate_properties(this, this, dupe, p_flags);
+
+	if (p_flags & DUPLICATE_SIGNALS) {
+		_duplicate_signals(this, dupe);
+	}
 
 	return dupe;
 }
@@ -2789,6 +2829,10 @@ Node *Node::duplicate_from_editor(HashMap<const Node *, Node *> &r_duplimap, con
 	int flags = DUPLICATE_SIGNALS | DUPLICATE_GROUPS | DUPLICATE_SCRIPTS | DUPLICATE_USE_INSTANTIATION | DUPLICATE_FROM_EDITOR;
 	Node *dupe = _duplicate(flags, &r_duplimap);
 
+	ERR_FAIL_NULL_V_MSG(dupe, nullptr, "Failed to duplicate node.");
+
+	_duplicate_properties(this, this, dupe, flags);
+
 	// This is used by SceneTreeDock's paste functionality. When pasting to foreign scene, resources are duplicated.
 	if (!p_resource_remap.is_empty()) {
 		remap_node_resources(dupe, p_resource_remap);
@@ -2798,8 +2842,6 @@ Node *Node::duplicate_from_editor(HashMap<const Node *, Node *> &r_duplimap, con
 	// because re-targeting of connections from some descendant to another is not possible
 	// if the emitter node comes later in tree order than the receiver
 	_duplicate_signals(this, dupe);
-
-	_duplicate_properties(this, this, dupe, flags);
 
 	return dupe;
 }
@@ -2901,9 +2943,8 @@ void Node::_duplicate_properties(const Node *p_root, const Node *p_original, Nod
 							arr[i] = p_copy->get_node_or_null(p_original->get_path_to(property_node));
 						}
 					}
-					value = arr;
-					p_copy->set(name, value);
 				}
+				p_copy->set(name, arr);
 			} else {
 				p_copy->set(name, value);
 			}
@@ -3814,6 +3855,9 @@ Node::Node() {
 	data.unhandled_key_input = false;
 
 	data.physics_interpolated = true;
+	data.physics_interpolation_reset_requested = false;
+	data.physics_interpolated_client_side = false;
+	data.use_identity_transform = false;
 
 	data.parent_owned = false;
 	data.in_constructor = true;

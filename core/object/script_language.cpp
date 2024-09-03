@@ -491,10 +491,6 @@ void ScriptServer::save_global_classes() {
 	ProjectSettings::get_singleton()->store_global_class_list(gcarr);
 }
 
-String ScriptServer::get_global_class_cache_file_path() {
-	return ProjectSettings::get_singleton()->get_global_class_list_path();
-}
-
 ////////////////////
 
 ScriptCodeCompletionCache *ScriptCodeCompletionCache::singleton = nullptr;
@@ -697,9 +693,28 @@ bool PlaceHolderScriptInstance::has_method(const StringName &p_method) const {
 	}
 
 	if (script.is_valid()) {
-		return script->has_method(p_method);
+		Ref<Script> scr = script;
+		while (scr.is_valid()) {
+			if (scr->has_method(p_method)) {
+				return true;
+			}
+			scr = scr->get_base_script();
+		}
 	}
 	return false;
+}
+
+Variant PlaceHolderScriptInstance::callp(const StringName &p_method, const Variant **p_args, int p_argcount, Callable::CallError &r_error) {
+	r_error.error = Callable::CallError::CALL_ERROR_INVALID_METHOD;
+#if TOOLS_ENABLED
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return String("Attempt to call a method on a placeholder instance. Check if the script is in tool mode.");
+	} else {
+		return String("Attempt to call a method on a placeholder instance. Probably a bug, please report.");
+	}
+#else
+	return Variant();
+#endif // TOOLS_ENABLED
 }
 
 void PlaceHolderScriptInstance::update(const List<PropertyInfo> &p_properties, const HashMap<StringName, Variant> &p_values) {

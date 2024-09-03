@@ -99,7 +99,9 @@ void FileDialog::set_visible(bool p_visible) {
 #endif
 
 	if (DisplayServer::get_singleton()->has_feature(DisplayServer::FEATURE_NATIVE_DIALOG_FILE) && (use_native_dialog || OS::get_singleton()->is_sandboxed())) {
-		_native_popup();
+		if (p_visible) {
+			_native_popup();
+		}
 	} else {
 		ConfirmationDialog::set_visible(p_visible);
 	}
@@ -1141,7 +1143,7 @@ void FileDialog::_update_option_controls() {
 			CheckBox *cb = memnew(CheckBox);
 			cb->set_pressed(opt.default_idx);
 			grid_options->add_child(cb);
-			cb->connect("toggled", callable_mp(this, &FileDialog::_option_changed_checkbox_toggled).bind(opt.name));
+			cb->connect(SceneStringName(toggled), callable_mp(this, &FileDialog::_option_changed_checkbox_toggled).bind(opt.name));
 			selected_options[opt.name] = (bool)opt.default_idx;
 		} else {
 			OptionButton *ob = memnew(OptionButton);
@@ -1150,7 +1152,7 @@ void FileDialog::_update_option_controls() {
 			}
 			ob->select(opt.default_idx);
 			grid_options->add_child(ob);
-			ob->connect("item_selected", callable_mp(this, &FileDialog::_option_changed_item_selected).bind(opt.name));
+			ob->connect(SceneStringName(item_selected), callable_mp(this, &FileDialog::_option_changed_item_selected).bind(opt.name));
 			selected_options[opt.name] = opt.default_idx;
 		}
 	}
@@ -1348,6 +1350,7 @@ void FileDialog::_bind_methods() {
 	base_property_helper.register_property(PropertyInfo(Variant::STRING, "name"), defaults.name, &FileDialog::set_option_name, &FileDialog::get_option_name);
 	base_property_helper.register_property(PropertyInfo(Variant::PACKED_STRING_ARRAY, "values"), defaults.values, &FileDialog::set_option_values, &FileDialog::get_option_values);
 	base_property_helper.register_property(PropertyInfo(Variant::INT, "default"), defaults.default_idx, &FileDialog::set_option_default, &FileDialog::get_option_default);
+	PropertyListHelper::register_base_helper(&base_property_helper);
 }
 
 void FileDialog::set_show_hidden_files(bool p_show) {
@@ -1419,7 +1422,7 @@ FileDialog::FileDialog() {
 	hbc->add_child(drives_container);
 
 	drives = memnew(OptionButton);
-	drives->connect("item_selected", callable_mp(this, &FileDialog::_select_drive));
+	drives->connect(SceneStringName(item_selected), callable_mp(this, &FileDialog::_select_drive));
 	hbc->add_child(drives);
 
 	dir = memnew(LineEdit);
@@ -1438,7 +1441,7 @@ FileDialog::FileDialog() {
 	show_hidden->set_toggle_mode(true);
 	show_hidden->set_pressed(is_showing_hidden_files());
 	show_hidden->set_tooltip_text(ETR("Toggle the visibility of hidden files."));
-	show_hidden->connect("toggled", callable_mp(this, &FileDialog::set_show_hidden_files));
+	show_hidden->connect(SceneStringName(toggled), callable_mp(this, &FileDialog::set_show_hidden_files));
 	hbc->add_child(show_hidden);
 
 	shortcuts_container = memnew(HBoxContainer);
@@ -1484,19 +1487,19 @@ FileDialog::FileDialog() {
 	dir_access = DirAccess::create(DirAccess::ACCESS_RESOURCES);
 	_update_drives();
 
-	connect("confirmed", callable_mp(this, &FileDialog::_action_pressed));
+	connect(SceneStringName(confirmed), callable_mp(this, &FileDialog::_action_pressed));
 	tree->connect("multi_selected", callable_mp(this, &FileDialog::_tree_multi_selected), CONNECT_DEFERRED);
 	tree->connect("cell_selected", callable_mp(this, &FileDialog::_tree_selected), CONNECT_DEFERRED);
 	tree->connect("item_activated", callable_mp(this, &FileDialog::_tree_item_activated));
 	tree->connect("nothing_selected", callable_mp(this, &FileDialog::deselect_all));
 	dir->connect("text_submitted", callable_mp(this, &FileDialog::_dir_submitted));
 	file->connect("text_submitted", callable_mp(this, &FileDialog::_file_submitted));
-	filter->connect("item_selected", callable_mp(this, &FileDialog::_filter_selected));
+	filter->connect(SceneStringName(item_selected), callable_mp(this, &FileDialog::_filter_selected));
 
 	confirm_save = memnew(ConfirmationDialog);
 	add_child(confirm_save, false, INTERNAL_MODE_FRONT);
 
-	confirm_save->connect("confirmed", callable_mp(this, &FileDialog::_save_confirm_pressed));
+	confirm_save->connect(SceneStringName(confirmed), callable_mp(this, &FileDialog::_save_confirm_pressed));
 
 	makedialog = memnew(ConfirmationDialog);
 	makedialog->set_title(ETR("Create Folder"));
@@ -1508,7 +1511,7 @@ FileDialog::FileDialog() {
 	makevb->add_margin_child(ETR("Name:"), makedirname);
 	add_child(makedialog, false, INTERNAL_MODE_FRONT);
 	makedialog->register_text_enter(makedirname);
-	makedialog->connect("confirmed", callable_mp(this, &FileDialog::_make_dir_confirm));
+	makedialog->connect(SceneStringName(confirmed), callable_mp(this, &FileDialog::_make_dir_confirm));
 	mkdirerr = memnew(AcceptDialog);
 	mkdirerr->set_text(ETR("Could not create folder."));
 	add_child(mkdirerr, false, INTERNAL_MODE_FRONT);

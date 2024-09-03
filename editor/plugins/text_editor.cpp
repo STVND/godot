@@ -35,6 +35,7 @@
 #include "editor/editor_node.h"
 #include "editor/editor_settings.h"
 #include "scene/gui/menu_button.h"
+#include "scene/gui/split_container.h"
 
 void TextEditor::add_syntax_highlighter(Ref<EditorSyntaxHighlighter> p_highlighter) {
 	ERR_FAIL_COND(p_highlighter.is_null());
@@ -288,6 +289,10 @@ void TextEditor::trim_trailing_whitespace() {
 	code_editor->trim_trailing_whitespace();
 }
 
+void TextEditor::trim_final_newlines() {
+	code_editor->trim_final_newlines();
+}
+
 void TextEditor::insert_final_newline() {
 	code_editor->insert_final_newline();
 }
@@ -300,8 +305,8 @@ void TextEditor::tag_saved_version() {
 	code_editor->get_text_editor()->tag_saved_version();
 }
 
-void TextEditor::goto_line(int p_line, bool p_with_error) {
-	code_editor->goto_line(p_line);
+void TextEditor::goto_line(int p_line, int p_column) {
+	code_editor->goto_line(p_line, p_column);
 }
 
 void TextEditor::goto_line_selection(int p_line, int p_begin, int p_end) {
@@ -413,6 +418,9 @@ void TextEditor::_edit_option(int p_op) {
 		} break;
 		case EDIT_TRIM_TRAILING_WHITESAPCE: {
 			trim_trailing_whitespace();
+		} break;
+		case EDIT_TRIM_FINAL_NEWLINES: {
+			trim_final_newlines();
 		} break;
 		case EDIT_CONVERT_INDENT_TO_SPACES: {
 			code_editor->set_indent_using_spaces(true);
@@ -599,6 +607,7 @@ TextEditor::TextEditor() {
 	code_editor->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
 	code_editor->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	code_editor->show_toggle_scripts_button();
+	code_editor->set_toggle_list_control(ScriptEditor::get_singleton()->get_left_list_split());
 
 	update_settings();
 
@@ -607,7 +616,7 @@ TextEditor::TextEditor() {
 
 	context_menu = memnew(PopupMenu);
 	add_child(context_menu);
-	context_menu->connect("id_pressed", callable_mp(this, &TextEditor::_edit_option));
+	context_menu->connect(SceneStringName(id_pressed), callable_mp(this, &TextEditor::_edit_option));
 
 	edit_hb = memnew(HBoxContainer);
 
@@ -617,7 +626,7 @@ TextEditor::TextEditor() {
 	edit_menu->set_text(TTR("Edit"));
 	edit_menu->set_switch_on_hover(true);
 	edit_menu->connect("about_to_popup", callable_mp(this, &TextEditor::_prepare_edit_menu));
-	edit_menu->get_popup()->connect("id_pressed", callable_mp(this, &TextEditor::_edit_option));
+	edit_menu->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &TextEditor::_edit_option));
 
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("ui_undo"), EDIT_UNDO);
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("ui_redo"), EDIT_REDO);
@@ -641,20 +650,21 @@ TextEditor::TextEditor() {
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/duplicate_lines"), EDIT_DUPLICATE_LINES);
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/toggle_word_wrap"), EDIT_TOGGLE_WORD_WRAP);
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/trim_trailing_whitespace"), EDIT_TRIM_TRAILING_WHITESAPCE);
+	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/trim_final_newlines"), EDIT_TRIM_FINAL_NEWLINES);
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/convert_indent_to_spaces"), EDIT_CONVERT_INDENT_TO_SPACES);
 	edit_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/convert_indent_to_tabs"), EDIT_CONVERT_INDENT_TO_TABS);
 
 	edit_menu->get_popup()->add_separator();
 	PopupMenu *convert_case = memnew(PopupMenu);
 	edit_menu->get_popup()->add_submenu_node_item(TTR("Convert Case"), convert_case);
-	convert_case->add_shortcut(ED_SHORTCUT("script_text_editor/convert_to_uppercase", TTR("Uppercase")), EDIT_TO_UPPERCASE);
-	convert_case->add_shortcut(ED_SHORTCUT("script_text_editor/convert_to_lowercase", TTR("Lowercase")), EDIT_TO_LOWERCASE);
-	convert_case->add_shortcut(ED_SHORTCUT("script_text_editor/capitalize", TTR("Capitalize")), EDIT_CAPITALIZE);
-	convert_case->connect("id_pressed", callable_mp(this, &TextEditor::_edit_option));
+	convert_case->add_shortcut(ED_GET_SHORTCUT("script_text_editor/convert_to_uppercase"), EDIT_TO_UPPERCASE);
+	convert_case->add_shortcut(ED_GET_SHORTCUT("script_text_editor/convert_to_lowercase"), EDIT_TO_LOWERCASE);
+	convert_case->add_shortcut(ED_GET_SHORTCUT("script_text_editor/capitalize"), EDIT_CAPITALIZE);
+	convert_case->connect(SceneStringName(id_pressed), callable_mp(this, &TextEditor::_edit_option));
 
 	highlighter_menu = memnew(PopupMenu);
 	edit_menu->get_popup()->add_submenu_node_item(TTR("Syntax Highlighter"), highlighter_menu);
-	highlighter_menu->connect("id_pressed", callable_mp(this, &TextEditor::_change_syntax_highlighter));
+	highlighter_menu->connect(SceneStringName(id_pressed), callable_mp(this, &TextEditor::_change_syntax_highlighter));
 
 	Ref<EditorPlainTextSyntaxHighlighter> plain_highlighter;
 	plain_highlighter.instantiate();
@@ -670,7 +680,7 @@ TextEditor::TextEditor() {
 	edit_hb->add_child(search_menu);
 	search_menu->set_text(TTR("Search"));
 	search_menu->set_switch_on_hover(true);
-	search_menu->get_popup()->connect("id_pressed", callable_mp(this, &TextEditor::_edit_option));
+	search_menu->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &TextEditor::_edit_option));
 
 	search_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/find"), SEARCH_FIND);
 	search_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/find_next"), SEARCH_FIND_NEXT);
@@ -685,7 +695,7 @@ TextEditor::TextEditor() {
 	edit_hb->add_child(goto_menu);
 	goto_menu->set_text(TTR("Go To"));
 	goto_menu->set_switch_on_hover(true);
-	goto_menu->get_popup()->connect("id_pressed", callable_mp(this, &TextEditor::_edit_option));
+	goto_menu->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &TextEditor::_edit_option));
 
 	goto_menu->get_popup()->add_shortcut(ED_GET_SHORTCUT("script_text_editor/goto_line"), SEARCH_GOTO_LINE);
 	goto_menu->get_popup()->add_separator();

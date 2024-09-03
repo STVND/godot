@@ -214,6 +214,7 @@ private:
 	int code_completion_longest_line = 0;
 	Rect2i code_completion_rect;
 	Rect2i code_completion_scroll_rect;
+	float code_completion_pan_offset = 0.0f;
 
 	HashSet<char32_t> code_completion_prefixes;
 	List<ScriptLanguage::CodeCompletionOption> code_completion_option_submitted;
@@ -244,6 +245,7 @@ private:
 		Ref<Texture2D> can_fold_code_region_icon;
 		Ref<Texture2D> folded_code_region_icon;
 		Ref<Texture2D> folded_eol_icon;
+		Ref<Texture2D> completion_color_bg;
 
 		Color breakpoint_color = Color(1, 1, 1);
 		Ref<Texture2D> breakpoint_icon = Ref<Texture2D>();

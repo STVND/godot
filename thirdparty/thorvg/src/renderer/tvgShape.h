@@ -34,6 +34,7 @@ struct Shape::Impl
     RenderData rd = nullptr;            //engine data
     Shape* shape;
     uint8_t flag = RenderUpdateFlag::None;
+
     uint8_t opacity;                    //for composition
     bool needComp = false;              //composite or not
 
@@ -53,10 +54,13 @@ struct Shape::Impl
         Compositor* cmp = nullptr;
         bool ret;
 
+        renderer->blend(shape->blend(), !needComp);
+
         if (needComp) {
             cmp = renderer->target(bounds(renderer), renderer->colorSpace());
             renderer->beginComposite(cmp, CompositeMethod::None, opacity);
         }
+
         ret = renderer->renderShape(rd);
         if (cmp) renderer->endComposite(cmp);
         return ret;
@@ -67,7 +71,7 @@ struct Shape::Impl
         if (opacity == 0) return false;
 
         //Shape composition is only necessary when stroking & fill are valid.
-        if (!rs.stroke || rs.stroke->width < FLT_EPSILON || (!rs.stroke->fill && rs.stroke->color[3] == 0)) return false;
+        if (!rs.stroke || rs.stroke->width < FLOAT_EPSILON || (!rs.stroke->fill && rs.stroke->color[3] == 0)) return false;
         if (!rs.fill && rs.color[3] == 0) return false;
 
         //translucent fill & stroke
@@ -95,8 +99,10 @@ struct Shape::Impl
         return true;
     }
 
-    RenderData update(RenderMethod* renderer, const RenderTransform* transform, Array<RenderData>& clips, uint8_t opacity, RenderUpdateFlag pFlag, bool clipper)
-    {     
+    RenderData update(RenderMethod* renderer, const Matrix& transform, Array<RenderData>& clips, uint8_t opacity, RenderUpdateFlag pFlag, bool clipper)
+    {
+        if (static_cast<RenderUpdateFlag>(pFlag | flag) == RenderUpdateFlag::None) return rd;
+
         if ((needComp = needComposition(opacity))) {
             /* Overriding opacity value. If this scene is half-translucent,
                It must do intermeidate composition with that opacity value. */ 
@@ -167,24 +173,18 @@ struct Shape::Impl
         memcpy(rs.path.pts.end(), pts, sizeof(Point) * ptsCnt);
         rs.path.cmds.count += cmdCnt;
         rs.path.pts.count += ptsCnt;
-
-        flag |= RenderUpdateFlag::Path;
     }
 
     void moveTo(float x, float y)
     {
         rs.path.cmds.push(PathCommand::MoveTo);
         rs.path.pts.push({x, y});
-
-        flag |= RenderUpdateFlag::Path;
     }
 
     void lineTo(float x, float y)
     {
         rs.path.cmds.push(PathCommand::LineTo);
         rs.path.pts.push({x, y});
-
-        flag |= RenderUpdateFlag::Path;
     }
 
     void cubicTo(float cx1, float cy1, float cx2, float cy2, float x, float y)
@@ -193,8 +193,6 @@ struct Shape::Impl
         rs.path.pts.push({cx1, cy1});
         rs.path.pts.push({cx2, cy2});
         rs.path.pts.push({x, y});
-
-        flag |= RenderUpdateFlag::Path;
     }
 
     void close()
@@ -203,64 +201,66 @@ struct Shape::Impl
         if (rs.path.cmds.count > 0 && rs.path.cmds.last() == PathCommand::Close) return;
 
         rs.path.cmds.push(PathCommand::Close);
-
-        flag |= RenderUpdateFlag::Path;
     }
 
-    bool strokeWidth(float width)
+    void strokeWidth(float width)
     {
         if (!rs.stroke) rs.stroke = new RenderStroke();
         rs.stroke->width = width;
         flag |= RenderUpdateFlag::Stroke;
-
-        return true;
     }
 
-    bool strokeTrim(float begin, float end, bool individual)
+    void strokeTrim(float begin, float end, bool simultaneous)
     {
         if (!rs.stroke) {
-            if (begin == 0.0f && end == 1.0f) return true;
+            if (begin == 0.0f && end == 1.0f) return;
             rs.stroke = new RenderStroke();
         }
 
-        if (mathEqual(rs.stroke->trim.begin, begin) && mathEqual(rs.stroke->trim.end, end)) return true;
+        if (mathEqual(rs.stroke->trim.begin, begin) && mathEqual(rs.stroke->trim.end, end) &&
+            rs.stroke->trim.simultaneous == simultaneous) return;
 
         rs.stroke->trim.begin = begin;
         rs.stroke->trim.end = end;
-        rs.stroke->trim.individual = individual;
+        rs.stroke->trim.simultaneous = simultaneous;
         flag |= RenderUpdateFlag::Stroke;
-
-        return true;
     }
 
-    bool strokeCap(StrokeCap cap)
+    bool strokeTrim(float* begin, float* end)
+    {
+        if (rs.stroke) {
+            if (begin) *begin = rs.stroke->trim.begin;
+            if (end) *end = rs.stroke->trim.end;
+            return rs.stroke->trim.simultaneous;
+        } else {
+            if (begin) *begin = 0.0f;
+            if (end) *end = 1.0f;
+            return false;
+        }
+    }
+
+    void strokeCap(StrokeCap cap)
     {
         if (!rs.stroke) rs.stroke = new RenderStroke();
         rs.stroke->cap = cap;
         flag |= RenderUpdateFlag::Stroke;
-
-        return true;
     }
 
-    bool strokeJoin(StrokeJoin join)
+    void strokeJoin(StrokeJoin join)
     {
         if (!rs.stroke) rs.stroke = new RenderStroke();
         rs.stroke->join = join;
         flag |= RenderUpdateFlag::Stroke;
-
-        return true;
     }
 
-    bool strokeMiterlimit(float miterlimit)
+    void strokeMiterlimit(float miterlimit)
     {
         if (!rs.stroke) rs.stroke = new RenderStroke();
         rs.stroke->miterlimit = miterlimit;
         flag |= RenderUpdateFlag::Stroke;
-
-        return true;
     }
 
-    bool strokeColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+    void strokeColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     {
         if (!rs.stroke) rs.stroke = new RenderStroke();
         if (rs.stroke->fill) {
@@ -275,8 +275,6 @@ struct Shape::Impl
         rs.stroke->color[3] = a;
 
         flag |= RenderUpdateFlag::Stroke;
-
-        return true;
     }
 
     Result strokeFill(unique_ptr<Fill> f)
@@ -287,6 +285,7 @@ struct Shape::Impl
         if (!rs.stroke) rs.stroke = new RenderStroke();
         if (rs.stroke->fill && rs.stroke->fill != p) delete(rs.stroke->fill);
         rs.stroke->fill = p;
+        rs.stroke->color[3] = 0;
 
         flag |= RenderUpdateFlag::Stroke;
         flag |= RenderUpdateFlag::GradientStroke;
@@ -301,7 +300,7 @@ struct Shape::Impl
         }
 
         for (uint32_t i = 0; i < cnt; i++) {
-            if (pattern[i] < FLT_EPSILON) return Result::InvalidArguments;
+            if (pattern[i] < FLOAT_EPSILON) return Result::InvalidArguments;
         }
 
         //Reset dash
@@ -335,13 +334,11 @@ struct Shape::Impl
         return rs.stroke->strokeFirst;
     }
 
-    bool strokeFirst(bool strokeFirst)
+    void strokeFirst(bool strokeFirst)
     {
         if (!rs.stroke) rs.stroke = new RenderStroke();
         rs.stroke->strokeFirst = strokeFirst;
         flag |= RenderUpdateFlag::Stroke;
-
-        return true;
     }
 
     void update(RenderUpdateFlag flag)
@@ -349,47 +346,56 @@ struct Shape::Impl
         this->flag |= flag;
     }
 
-    Paint* duplicate()
+    Paint* duplicate(Paint* ret)
     {
-        auto ret = Shape::gen().release();
-        auto dup = ret->pImpl;
+        auto shape = static_cast<Shape*>(ret);
+        if (shape) shape->reset();
+        else shape = Shape::gen().release();
 
+        auto dup = shape->pImpl;
+        delete(dup->rs.fill);
+
+        //Default Properties
+        dup->flag = RenderUpdateFlag::All;
         dup->rs.rule = rs.rule;
 
         //Color
         memcpy(dup->rs.color, rs.color, sizeof(rs.color));
-        dup->flag = RenderUpdateFlag::Color;
 
         //Path
-        if (rs.path.cmds.count > 0 && rs.path.pts.count > 0) {
-            dup->rs.path.cmds = rs.path.cmds;
-            dup->rs.path.pts = rs.path.pts;
-            dup->flag |= RenderUpdateFlag::Path;
-        }
+        dup->rs.path.cmds.push(rs.path.cmds);
+        dup->rs.path.pts.push(rs.path.pts);
 
         //Stroke
         if (rs.stroke) {
-            dup->rs.stroke = new RenderStroke();
+            if (!dup->rs.stroke) dup->rs.stroke = new RenderStroke;
             *dup->rs.stroke = *rs.stroke;
-            memcpy(dup->rs.stroke->color, rs.stroke->color, sizeof(rs.stroke->color));
-            if (rs.stroke->dashCnt > 0) {
-                dup->rs.stroke->dashPattern = static_cast<float*>(malloc(sizeof(float) * rs.stroke->dashCnt));
-                memcpy(dup->rs.stroke->dashPattern, rs.stroke->dashPattern, sizeof(float) * rs.stroke->dashCnt);
-            }
-            if (rs.stroke->fill) {
-                dup->rs.stroke->fill = rs.stroke->fill->duplicate();
-                dup->flag |= RenderUpdateFlag::GradientStroke;
-            }
-            dup->flag |= RenderUpdateFlag::Stroke;
+        } else {
+            delete(dup->rs.stroke);
+            dup->rs.stroke = nullptr;
         }
 
         //Fill
-        if (rs.fill) {
-            dup->rs.fill = rs.fill->duplicate();
-            dup->flag |= RenderUpdateFlag::Gradient;
-        }
+        if (rs.fill) dup->rs.fill = rs.fill->duplicate();
+        else dup->rs.fill = nullptr;
 
-        return ret;
+        return shape;
+    }
+
+    void reset()
+    {
+        PP(shape)->reset();
+        rs.path.cmds.clear();
+        rs.path.pts.clear();
+
+        rs.color[3] = 0;
+        rs.rule = FillRule::Winding;
+
+        delete(rs.stroke);
+        rs.stroke = nullptr;
+
+        delete(rs.fill);
+        rs.fill = nullptr;
     }
 
     Iterator* iterator()

@@ -117,7 +117,9 @@ class SceneImportSettingsData : public Object {
 		ERR_FAIL_NULL(settings);
 		if (r_option.name == "rest_pose/load_pose") {
 			if (!settings->has("rest_pose/load_pose") || int((*settings)["rest_pose/load_pose"]) != 2) {
-				(*settings)["rest_pose/external_animation_library"] = Variant();
+				if (settings->has("rest_pose/external_animation_library")) {
+					(*settings)["rest_pose/external_animation_library"] = Variant();
+				}
 			}
 		}
 		if (r_option.name == "rest_pose/selected_animation") {
@@ -134,7 +136,10 @@ class SceneImportSettingsData : public Object {
 					}
 				} break;
 				case 2: {
-					Object *res = (*settings)["rest_pose/external_animation_library"];
+					Object *res = nullptr;
+					if (settings->has("rest_pose/external_animation_library")) {
+						res = (*settings)["rest_pose/external_animation_library"];
+					}
 					Ref<Animation> anim(res);
 					Ref<AnimationLibrary> library(res);
 					if (anim.is_valid()) {
@@ -467,6 +472,7 @@ void SceneImportSettingsDialog::_fill_scene(Node *p_node, TreeItem *p_parent_ite
 		}
 
 		AABB aabb = accum_xform.xform(mesh_node->get_mesh()->get_aabb());
+
 		if (first_aabb) {
 			contents_aabb = aabb;
 			first_aabb = false;
@@ -609,7 +615,7 @@ void SceneImportSettingsDialog::_update_camera() {
 	float rot_y = cam_rot_y;
 	float zoom = cam_zoom;
 
-	if (selected_type == "Node" || selected_type.is_empty()) {
+	if (selected_type == "Node" || selected_type == "Animation" || selected_type.is_empty()) {
 		camera_aabb = contents_aabb;
 	} else {
 		if (mesh_preview->get_mesh().is_valid()) {
@@ -672,26 +678,26 @@ void SceneImportSettingsDialog::update_view() {
 	update_view_timer->start();
 }
 
-void SceneImportSettingsDialog::open_settings(const String &p_path, bool p_for_animation) {
+void SceneImportSettingsDialog::open_settings(const String &p_path, const String &p_scene_import_type) {
 	if (scene) {
 		_cleanup();
 		memdelete(scene);
 		scene = nullptr;
 	}
 
-	editing_animation = p_for_animation;
+	editing_animation = p_scene_import_type == "AnimationLibrary";
 	scene_import_settings_data->settings = nullptr;
 	scene_import_settings_data->path = p_path;
 
 	// Visibility.
-	data_mode->set_tab_hidden(1, p_for_animation);
-	data_mode->set_tab_hidden(2, p_for_animation);
-	if (p_for_animation) {
+	data_mode->set_tab_hidden(1, editing_animation);
+	data_mode->set_tab_hidden(2, editing_animation);
+	if (editing_animation) {
 		data_mode->set_current_tab(0);
 	}
 
-	action_menu->get_popup()->set_item_disabled(action_menu->get_popup()->get_item_id(ACTION_EXTRACT_MATERIALS), p_for_animation);
-	action_menu->get_popup()->set_item_disabled(action_menu->get_popup()->get_item_id(ACTION_CHOOSE_MESH_SAVE_PATHS), p_for_animation);
+	action_menu->get_popup()->set_item_disabled(action_menu->get_popup()->get_item_id(ACTION_EXTRACT_MATERIALS), editing_animation);
+	action_menu->get_popup()->set_item_disabled(action_menu->get_popup()->get_item_id(ACTION_CHOOSE_MESH_SAVE_PATHS), editing_animation);
 
 	base_path = p_path;
 
@@ -765,7 +771,7 @@ void SceneImportSettingsDialog::open_settings(const String &p_path, bool p_for_a
 	// Start with the root item (Scene) selected.
 	scene_tree->get_root()->select(0);
 
-	if (p_for_animation) {
+	if (editing_animation) {
 		set_title(vformat(TTR("Advanced Import Settings for AnimationLibrary '%s'"), base_path.get_file()));
 	} else {
 		set_title(vformat(TTR("Advanced Import Settings for Scene '%s'"), base_path.get_file()));
@@ -1256,12 +1262,12 @@ void SceneImportSettingsDialog::_update_theme_item_cache() {
 void SceneImportSettingsDialog::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY: {
-			connect("confirmed", callable_mp(this, &SceneImportSettingsDialog::_re_import));
+			connect(SceneStringName(confirmed), callable_mp(this, &SceneImportSettingsDialog::_re_import));
 		} break;
 
 		case NOTIFICATION_THEME_CHANGED: {
 			action_menu->begin_bulk_theme_override();
-			action_menu->add_theme_style_override("normal", get_theme_stylebox("normal", "Button"));
+			action_menu->add_theme_style_override(CoreStringName(normal), get_theme_stylebox(CoreStringName(normal), "Button"));
 			action_menu->add_theme_style_override("hover", get_theme_stylebox("hover", "Button"));
 			action_menu->add_theme_style_override(SceneStringName(pressed), get_theme_stylebox(SceneStringName(pressed), "Button"));
 			action_menu->end_bulk_theme_override();
@@ -1584,7 +1590,7 @@ SceneImportSettingsDialog::SceneImportSettingsDialog() {
 	action_menu->get_popup()->add_item(TTR("Set Animation Save Paths"), ACTION_CHOOSE_ANIMATION_SAVE_PATHS);
 	action_menu->get_popup()->add_item(TTR("Set Mesh Save Paths"), ACTION_CHOOSE_MESH_SAVE_PATHS);
 
-	action_menu->get_popup()->connect("id_pressed", callable_mp(this, &SceneImportSettingsDialog::_menu_callback));
+	action_menu->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &SceneImportSettingsDialog::_menu_callback));
 
 	tree_split = memnew(HSplitContainer);
 	main_vb->add_child(tree_split);
@@ -1665,7 +1671,7 @@ SceneImportSettingsDialog::SceneImportSettingsDialog() {
 	animation_slider->set_step(1.0 / 100.0);
 	animation_slider->set_value_no_signal(0.0);
 	animation_slider->set_focus_mode(Control::FOCUS_NONE);
-	animation_slider->connect(SNAME("value_changed"), callable_mp(this, &SceneImportSettingsDialog::_animation_slider_value_changed));
+	animation_slider->connect(SceneStringName(value_changed), callable_mp(this, &SceneImportSettingsDialog::_animation_slider_value_changed));
 
 	base_viewport->set_use_own_world_3d(true);
 
@@ -1810,7 +1816,7 @@ SceneImportSettingsDialog::SceneImportSettingsDialog() {
 	external_path_tree = memnew(Tree);
 	external_paths->add_child(external_path_tree);
 	external_path_tree->connect("button_clicked", callable_mp(this, &SceneImportSettingsDialog::_browse_save_callback));
-	external_paths->connect("confirmed", callable_mp(this, &SceneImportSettingsDialog::_save_dir_confirm));
+	external_paths->connect(SceneStringName(confirmed), callable_mp(this, &SceneImportSettingsDialog::_save_dir_confirm));
 	external_path_tree->set_auto_translate_mode(AUTO_TRANSLATE_MODE_DISABLED);
 	external_path_tree->set_columns(3);
 	external_path_tree->set_column_titles_visible(true);

@@ -2,9 +2,11 @@
 
 Import("env")
 
-import core_builders
-import methods
 import os
+
+import core_builders
+
+import methods
 
 env.core_sources = []
 
@@ -138,7 +140,7 @@ if env["builtin_zstd"]:
         "decompress/zstd_decompress_block.c",
         "decompress/zstd_decompress.c",
     ]
-    if env["platform"] in ["android", "ios", "linuxbsd", "macos"]:
+    if env["platform"] in ["android", "ios", "linuxbsd", "macos"] and env["arch"] == "x86_64":
         # Match platforms with ZSTD_ASM_SUPPORTED in common/portability_macros.h
         thirdparty_zstd_sources.append("decompress/huf_decompress_amd64.S")
     thirdparty_zstd_sources = [thirdparty_zstd_dir + file for file in thirdparty_zstd_sources]
@@ -188,13 +190,11 @@ def version_info_builder(target, source, env):
 #define VERSION_WEBSITE "{website}"
 #define VERSION_DOCS_BRANCH "{docs_branch}"
 #define VERSION_DOCS_URL "https://docs.godotengine.org/en/" VERSION_DOCS_BRANCH
-""".format(
-                **env.version_info
-            )
+""".format(**env.version_info)
         )
 
 
-env.CommandNoCache("version_generated.gen.h", "#version.py", env.Run(version_info_builder))
+env.CommandNoCache("version_generated.gen.h", env.Value(env.version_info), env.Run(version_info_builder))
 
 
 # Generate version hash
@@ -206,9 +206,7 @@ def version_hash_builder(target, source, env):
 
 const char *const VERSION_HASH = "{git_hash}";
 const uint64_t VERSION_TIMESTAMP = {git_timestamp};
-""".format(
-                **env.version_info
-            )
+""".format(**env.version_info)
         )
 
 

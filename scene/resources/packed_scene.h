@@ -195,6 +195,7 @@ public:
 	bool has_connection(const NodePath &p_node_from, const StringName &p_signal, const NodePath &p_node_to, const StringName &p_method, bool p_no_inheritance = false);
 
 	Vector<NodePath> get_editable_instances() const;
+	Ref<Resource> get_sub_resource(const String &p_path);
 
 	//build API
 
@@ -270,6 +271,7 @@ public:
 		state->set_last_modified_time(p_time);
 	}
 
+	static HashSet<StringName> get_scene_groups(const String &p_path);
 #endif
 	Ref<SceneState> get_state() const;
 

@@ -349,7 +349,7 @@ String ShaderGlobalsEditor::_check_new_variable_name(const String &p_variable_na
 		return TTR("Name cannot be empty.");
 	}
 
-	if (!p_variable_name.is_valid_identifier()) {
+	if (!p_variable_name.is_valid_ascii_identifier()) {
 		return TTR("Name must be a valid identifier.");
 	}
 
@@ -456,7 +456,7 @@ ShaderGlobalsEditor::ShaderGlobalsEditor() {
 	variable_name = memnew(LineEdit);
 	variable_name->set_h_size_flags(SIZE_EXPAND_FILL);
 	variable_name->set_clear_button_enabled(true);
-	variable_name->connect("text_changed", callable_mp(this, &ShaderGlobalsEditor::_variable_name_text_changed));
+	variable_name->connect(SceneStringName(text_changed), callable_mp(this, &ShaderGlobalsEditor::_variable_name_text_changed));
 	variable_name->connect("text_submitted", callable_mp(this, &ShaderGlobalsEditor::_variable_added).unbind(1));
 
 	add_menu_hb->add_child(variable_name);

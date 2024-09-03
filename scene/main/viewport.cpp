@@ -309,7 +309,8 @@ void Viewport::_sub_window_update(Window *p_window) {
 	int index = _sub_window_find(p_window);
 	ERR_FAIL_COND(index == -1);
 
-	const SubWindow &sw = gui.sub_windows[index];
+	SubWindow &sw = gui.sub_windows.write[index];
+	sw.pending_window_update = false;
 
 	Transform2D pos;
 	pos.set_origin(p_window->get_position());
@@ -883,6 +884,10 @@ void Viewport::_process_picking() {
 		}
 
 #ifndef _3D_DISABLED
+		if (physics_object_picking_first_only && is_input_handled()) {
+			continue;
+		}
+
 		CollisionObject3D *capture_object = nullptr;
 		if (physics_object_capture.is_valid()) {
 			capture_object = Object::cast_to<CollisionObject3D>(ObjectDB::get_instance(physics_object_capture));
@@ -972,10 +977,18 @@ void Viewport::update_canvas_items() {
 		return;
 	}
 
+	if (is_embedding_subwindows()) {
+		for (Viewport::SubWindow w : gui.sub_windows) {
+			if (w.window && !w.pending_window_update) {
+				w.pending_window_update = true;
+				callable_mp(this, &Viewport::_sub_window_update).call_deferred(w.window);
+			}
+		}
+	}
 	_update_canvas_items(this);
 }
 
-void Viewport::_set_size(const Size2i &p_size, const Size2i &p_size_2d_override, bool p_allocated) {
+bool Viewport::_set_size(const Size2i &p_size, const Size2i &p_size_2d_override, bool p_allocated) {
 	Transform2D stretch_transform_new = Transform2D();
 	if (is_size_2d_override_stretch_enabled() && p_size_2d_override.width > 0 && p_size_2d_override.height > 0) {
 		Size2 scale = Size2(p_size) / Size2(p_size_2d_override);
@@ -984,7 +997,7 @@ void Viewport::_set_size(const Size2i &p_size, const Size2i &p_size_2d_override,
 
 	Size2i new_size = p_size.maxi(2);
 	if (size == new_size && size_allocated == p_allocated && stretch_transform == stretch_transform_new && p_size_2d_override == size_2d_override) {
-		return;
+		return false;
 	}
 
 	size = new_size;
@@ -1027,6 +1040,7 @@ void Viewport::_set_size(const Size2i &p_size, const Size2i &p_size_2d_override,
 			sw->set_size(new_rect.size);
 		}
 	}
+	return true;
 }
 
 Size2i Viewport::_get_size() const {
@@ -1429,7 +1443,7 @@ void Viewport::_gui_show_tooltip() {
 	Control *tooltip_owner = nullptr;
 	gui.tooltip_text = _gui_get_tooltip(
 			gui.tooltip_control,
-			gui.tooltip_control->get_global_transform().xform_inv(gui.last_mouse_pos),
+			gui.tooltip_control->get_global_transform_with_canvas().affine_inverse().xform(gui.last_mouse_pos),
 			&tooltip_owner);
 	gui.tooltip_text = gui.tooltip_text.strip_edges();
 
@@ -1501,6 +1515,7 @@ void Viewport::_gui_show_tooltip() {
 		r.size *= win_scale;
 		vr = window->get_usable_parent_rect();
 	}
+	r.size = r.size.ceil();
 	r.size = r.size.min(panel->get_max_size());
 
 	if (r.size.x + r.position.x > vr.size.x + vr.position.x) {
@@ -1909,7 +1924,7 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 
 				if (gui.tooltip_popup) {
 					if (gui.tooltip_control) {
-						String tooltip = _gui_get_tooltip(over, gui.tooltip_control->get_global_transform().xform_inv(mpos));
+						String tooltip = _gui_get_tooltip(over, gui.tooltip_control->get_global_transform_with_canvas().affine_inverse().xform(mpos));
 						tooltip = tooltip.strip_edges();
 
 						if (tooltip.is_empty() || tooltip != gui.tooltip_text) {
@@ -1922,7 +1937,12 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 					}
 				}
 
-				if (!is_tooltip_shown && over->can_process()) {
+				// If the tooltip timer isn't running, start it.
+				// Otherwise, only reset the timer if the mouse has moved more than 5 pixels.
+				if (!is_tooltip_shown && over->can_process() &&
+						(gui.tooltip_timer.is_null() ||
+								Math::is_zero_approx(gui.tooltip_timer->get_time_left()) ||
+								mm->get_relative().length() > 5.0)) {
 					if (gui.tooltip_timer.is_valid()) {
 						gui.tooltip_timer->release_connections();
 						gui.tooltip_timer = Ref<SceneTreeTimer>();
@@ -4250,8 +4270,7 @@ bool Viewport::_camera_3d_add(Camera3D *p_camera) {
 void Viewport::_camera_3d_remove(Camera3D *p_camera) {
 	camera_3d_set.erase(p_camera);
 	if (camera_3d == p_camera) {
-		camera_3d->notification(Camera3D::NOTIFICATION_LOST_CURRENT);
-		camera_3d = nullptr;
+		_camera_3d_set(nullptr);
 	}
 }
 
@@ -5015,6 +5034,13 @@ Viewport::Viewport() {
 #endif // _3D_DISABLED
 
 	set_sdf_oversize(sdf_oversize); // Set to server.
+
+	// Physics interpolation mode for viewports is a special case.
+	// Typically viewports will be housed within Controls,
+	// and Controls default to PHYSICS_INTERPOLATION_MODE_OFF.
+	// Viewports can thus inherit physics interpolation OFF, which is unexpected.
+	// Setting to ON allows each viewport to have a fresh interpolation state.
+	set_physics_interpolation_mode(Node::PHYSICS_INTERPOLATION_MODE_ON);
 }
 
 Viewport::~Viewport() {
@@ -5053,6 +5079,7 @@ void SubViewport::_internal_set_size(const Size2i &p_size, bool p_force) {
 
 	if (c) {
 		c->update_minimum_size();
+		c->queue_redraw();
 	}
 }
 

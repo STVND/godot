@@ -266,9 +266,6 @@ void MultiMeshEditor::_browse(bool p_source) {
 	std->popup_scenetree_dialog(browsed_node);
 }
 
-void MultiMeshEditor::_bind_methods() {
-}
-
 MultiMeshEditor::MultiMeshEditor() {
 	options = memnew(MenuButton);
 	options->set_switch_on_hover(true);
@@ -278,7 +275,7 @@ MultiMeshEditor::MultiMeshEditor() {
 	options->set_icon(EditorNode::get_singleton()->get_editor_theme()->get_icon(SNAME("MultiMeshInstance3D"), EditorStringName(EditorIcons)));
 
 	options->get_popup()->add_item(TTR("Populate Surface"));
-	options->get_popup()->connect("id_pressed", callable_mp(this, &MultiMeshEditor::_menu_option));
+	options->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &MultiMeshEditor::_menu_option));
 
 	populate_dialog = memnew(ConfirmationDialog);
 	populate_dialog->set_title(TTR("Populate MultiMesh"));

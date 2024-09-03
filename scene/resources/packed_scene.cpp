@@ -314,6 +314,16 @@ Node *SceneState::instantiate(GenEditState p_edit_state) const {
 					ERR_FAIL_INDEX_V(nprops[j].value, prop_count, nullptr);
 
 					if (nprops[j].name & FLAG_PATH_PROPERTY_IS_NODE) {
+						if (!Engine::get_singleton()->is_editor_hint() && node->get_scene_instance_load_placeholder()) {
+							// We cannot know if the referenced nodes exist yet, so instead of deferring, we write the NodePaths directly.
+
+							uint32_t name_idx = nprops[j].name & (FLAG_PATH_PROPERTY_IS_NODE - 1);
+							ERR_FAIL_UNSIGNED_INDEX_V(name_idx, (uint32_t)sname_count, nullptr);
+
+							node->set(snames[name_idx], props[nprops[j].value], &valid);
+							continue;
+						}
+
 						uint32_t name_idx = nprops[j].name & (FLAG_PATH_PROPERTY_IS_NODE - 1);
 						ERR_FAIL_UNSIGNED_INDEX_V(name_idx, (uint32_t)sname_count, nullptr);
 
@@ -806,7 +816,7 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Has
 			bool is_valid_default = false;
 			Variant default_value = PropertyUtils::get_property_default_value(p_node, name, &is_valid_default, &states_stack, true);
 
-			if (is_valid_default && !PropertyUtils::is_property_value_different(value, default_value)) {
+			if (is_valid_default && !PropertyUtils::is_property_value_different(p_node, value, default_value)) {
 				if (value.get_type() == Variant::ARRAY && has_local_resource(value)) {
 					// Save anyway
 				} else if (value.get_type() == Variant::DICTIONARY) {
@@ -1870,6 +1880,16 @@ Vector<NodePath> SceneState::get_editable_instances() const {
 	return editable_instances;
 }
 
+Ref<Resource> SceneState::get_sub_resource(const String &p_path) {
+	for (const Variant &v : variants) {
+		const Ref<Resource> &res = v;
+		if (res.is_valid() && res->get_path() == p_path) {
+			return res;
+		}
+	}
+	return Ref<Resource>();
+}
+
 //add
 
 int SceneState::add_name(const StringName &p_name) {
@@ -2114,6 +2134,56 @@ void PackedScene::recreate_state() {
 #endif
 }
 
+#ifdef TOOLS_ENABLED
+HashSet<StringName> PackedScene::get_scene_groups(const String &p_path) {
+	{
+		Ref<PackedScene> packed_scene = ResourceCache::get_ref(p_path);
+		if (packed_scene.is_valid()) {
+			return packed_scene->get_state()->get_all_groups();
+		}
+	}
+
+	if (p_path.get_extension() == "tscn") {
+		Ref<FileAccess> scene_file = FileAccess::open(p_path, FileAccess::READ);
+		ERR_FAIL_COND_V(scene_file.is_null(), HashSet<StringName>());
+
+		HashSet<StringName> ret;
+		while (!scene_file->eof_reached()) {
+			const String line = scene_file->get_line();
+			if (!line.begins_with("[node")) {
+				continue;
+			}
+
+			int i = line.find("groups=[");
+			if (i == -1) {
+				continue;
+			}
+
+			int j = line.find_char(']', i);
+			while (i < j) {
+				i = line.find_char('"', i);
+				if (i == -1) {
+					break;
+				}
+
+				int k = line.find_char('"', i + 1);
+				if (k == -1) {
+					break;
+				}
+
+				ret.insert(line.substr(i + 1, k - i - 1));
+				i = k + 1;
+			}
+		}
+		return ret;
+	} else {
+		Ref<PackedScene> packed_scene = ResourceLoader::load(p_path);
+		ERR_FAIL_COND_V(packed_scene.is_null(), HashSet<StringName>());
+		return packed_scene->get_state()->get_all_groups();
+	}
+}
+#endif
+
 Ref<SceneState> PackedScene::get_state() const {
 	return state;
 }
@@ -2139,7 +2209,7 @@ void PackedScene::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_get_bundled_scene"), &PackedScene::_get_bundled_scene);
 	ClassDB::bind_method(D_METHOD("get_state"), &PackedScene::get_state);
 
-	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "_bundled"), "_set_bundled_scene", "_get_bundled_scene");
+	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "_bundled", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_INTERNAL), "_set_bundled_scene", "_get_bundled_scene");
 
 	BIND_ENUM_CONSTANT(GEN_EDIT_STATE_DISABLED);
 	BIND_ENUM_CONSTANT(GEN_EDIT_STATE_INSTANCE);

@@ -115,7 +115,7 @@ Vector<uint8_t> gen_pcm16_test(float wav_rate, int wav_count, bool stereo) {
 }
 
 void run_test(String file_name, AudioStreamWAV::Format data_format, bool stereo, float wav_rate, float wav_count) {
-	String save_path = OS::get_singleton()->get_cache_path().path_join(file_name);
+	String save_path = TestUtils::get_temp_path(file_name);
 
 	Vector<uint8_t> test_data;
 	if (data_format == AudioStreamWAV::FORMAT_8_BITS) {
@@ -159,6 +159,8 @@ void run_test(String file_name, AudioStreamWAV::Format data_format, bool stereo,
 		for (const ResourceImporter::ImportOption &E : options_list) {
 			options_map[E.option.name] = E.default_value;
 		}
+		// Compressed streams can't be saved, disable compression.
+		options_map["compress/mode"] = 0;
 
 		REQUIRE(wav_importer->import(save_path, save_path, options_map, nullptr) == OK);
 
@@ -200,7 +202,7 @@ TEST_CASE("[AudioStreamWAV] Alternate mix rate") {
 }
 
 TEST_CASE("[AudioStreamWAV] save_to_wav() adds '.wav' file extension automatically") {
-	String save_path = OS::get_singleton()->get_cache_path().path_join("test_wav_extension");
+	String save_path = TestUtils::get_temp_path("test_wav_extension");
 	Vector<uint8_t> test_data = gen_pcm8_test(WAV_RATE, WAV_COUNT, false);
 	Ref<AudioStreamWAV> stream = memnew(AudioStreamWAV);
 	stream->set_data(test_data);
@@ -230,7 +232,7 @@ TEST_CASE("[AudioStreamWAV] Save empty file") {
 }
 
 TEST_CASE("[AudioStreamWAV] Saving IMA ADPCM is not supported") {
-	String save_path = OS::get_singleton()->get_cache_path().path_join("test_adpcm.wav");
+	String save_path = TestUtils::get_temp_path("test_adpcm.wav");
 	Ref<AudioStreamWAV> stream = memnew(AudioStreamWAV);
 	stream->set_format(AudioStreamWAV::FORMAT_IMA_ADPCM);
 	ERR_PRINT_OFF;

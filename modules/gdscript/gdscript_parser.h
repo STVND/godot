@@ -1314,7 +1314,7 @@ public:
 		Variant::Type builtin_type = Variant::VARIANT_MAX;
 		Node *node = nullptr;
 		Object *base = nullptr;
-		List<Ref<GDScriptParserRef>> dependent_parsers;
+		GDScriptParser *parser = nullptr;
 	};
 
 	struct CompletionCall {
@@ -1329,6 +1329,7 @@ private:
 	bool _is_tool = false;
 	String script_path;
 	bool for_completion = false;
+	bool parse_body = true;
 	bool panic_mode = false;
 	bool can_break = false;
 	bool can_continue = false;
@@ -1370,7 +1371,7 @@ private:
 	bool in_lambda = false;
 	bool lambda_ended = false; // Marker for when a lambda ends, to apply an end of statement if needed.
 
-	typedef bool (GDScriptParser::*AnnotationAction)(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	typedef bool (GDScriptParser::*AnnotationAction)(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
 	struct AnnotationInfo {
 		enum TargetKind {
 			NONE = 0,
@@ -1454,9 +1455,11 @@ private:
 	}
 	void apply_pending_warnings();
 #endif
-
-	void make_completion_context(CompletionType p_type, Node *p_node, int p_argument = -1, bool p_force = false);
-	void make_completion_context(CompletionType p_type, Variant::Type p_builtin_type, bool p_force = false);
+	void make_completion_context(CompletionType p_type, Node *p_node, int p_argument = -1);
+	void make_completion_context(CompletionType p_type, Variant::Type p_builtin_type);
+	// In some cases it might become necessary to alter the completion context after parsing a subexpression.
+	// For example to not override COMPLETE_CALL_ARGUMENTS with COMPLETION_NONE from string literals.
+	void override_completion_context(const Node *p_for_node, CompletionType p_type, Node *p_node, int p_argument = -1);
 	void push_completion_call(Node *p_call);
 	void pop_completion_call();
 	void set_last_completion_call_arg(int p_argument);
@@ -1492,17 +1495,18 @@ private:
 	static bool register_annotation(const MethodInfo &p_info, uint32_t p_target_kinds, AnnotationAction p_apply, const Vector<Variant> &p_default_arguments = Vector<Variant>(), bool p_is_vararg = false);
 	bool validate_annotation_arguments(AnnotationNode *p_annotation);
 	void clear_unused_annotations();
-	bool tool_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
-	bool icon_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
-	bool onready_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool tool_annotation(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool icon_annotation(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool onready_annotation(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
 	template <PropertyHint t_hint, Variant::Type t_type>
-	bool export_annotations(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
-	bool export_custom_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool export_annotations(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool export_storage_annotation(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool export_custom_annotation(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
 	template <PropertyUsageFlags t_usage>
-	bool export_group_annotations(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
-	bool warning_annotations(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
-	bool rpc_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
-	bool static_unload_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool export_group_annotations(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool warning_annotations(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool rpc_annotation(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool static_unload_annotation(AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
 	// Statements.
 	Node *parse_statement();
 	VariableNode *parse_variable(bool p_is_static);
@@ -1559,7 +1563,7 @@ private:
 #endif // TOOLS_ENABLED
 
 public:
-	Error parse(const String &p_source_code, const String &p_script_path, bool p_for_completion);
+	Error parse(const String &p_source_code, const String &p_script_path, bool p_for_completion, bool p_parse_body = true);
 	Error parse_binary(const Vector<uint8_t> &p_binary, const String &p_script_path);
 	ClassNode *get_tree() const { return head; }
 	bool is_tool() const { return _is_tool; }

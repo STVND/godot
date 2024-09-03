@@ -5275,9 +5275,24 @@ Rect2i TileSetAtlasSource::get_tile_texture_region(Vector2i p_atlas_coords, int 
 
 bool TileSetAtlasSource::is_position_in_tile_texture_region(const Vector2i p_atlas_coords, int p_alternative_tile, Vector2 p_position) const {
 	Size2 size = get_tile_texture_region(p_atlas_coords).size;
-	Rect2 rect = Rect2(-size / 2 - get_tile_data(p_atlas_coords, p_alternative_tile)->get_texture_origin(), size);
+	TileData *tile_data = get_tile_data(p_atlas_coords, p_alternative_tile);
+	if (tile_data->get_transpose()) {
+		size = Size2(size.y, size.x);
+	}
+	Rect2 rect = Rect2(-size / 2 - tile_data->get_texture_origin(), size);
 
 	return rect.has_point(p_position);
+}
+
+bool TileSetAtlasSource::is_rect_in_tile_texture_region(const Vector2i p_atlas_coords, int p_alternative_tile, Rect2 p_rect) const {
+	Size2 size = get_tile_texture_region(p_atlas_coords).size;
+	TileData *tile_data = get_tile_data(p_atlas_coords, p_alternative_tile);
+	if (tile_data->get_transpose()) {
+		size = Size2(size.y, size.x);
+	}
+	Rect2 rect = Rect2(-size / 2 - tile_data->get_texture_origin(), size);
+
+	return p_rect.intersection(rect) == p_rect;
 }
 
 int TileSetAtlasSource::alternative_no_transform(int p_alternative_id) {
@@ -6378,7 +6393,7 @@ Ref<ConvexPolygonShape2D> TileData::get_collision_polygon_shape(int p_layer_id, 
 		for (int i = 0; i < size; i++) {
 			Ref<ConvexPolygonShape2D> transformed_polygon;
 			transformed_polygon.instantiate();
-			transformed_polygon->set_points(get_transformed_vertices(shapes_data.shapes[shape_index]->get_points(), p_flip_h, p_flip_v, p_transpose));
+			transformed_polygon->set_points(get_transformed_vertices(shapes_data.shapes[i]->get_points(), p_flip_h, p_flip_v, p_transpose));
 			shapes_data.transformed_shapes[key][i] = transformed_polygon;
 		}
 		return shapes_data.transformed_shapes[key][shape_index];
@@ -6487,20 +6502,19 @@ Ref<NavigationPolygon> TileData::get_navigation_polygon(int p_layer_id, bool p_f
 		transformed_polygon.instantiate();
 
 		PackedVector2Array new_points = get_transformed_vertices(layer_tile_data.navigation_polygon->get_vertices(), p_flip_h, p_flip_v, p_transpose);
-		transformed_polygon->set_vertices(new_points);
 
-		for (int i = 0; i < layer_tile_data.navigation_polygon->get_outline_count(); i++) {
-			PackedVector2Array new_outline = get_transformed_vertices(layer_tile_data.navigation_polygon->get_outline(i), p_flip_h, p_flip_v, p_transpose);
-			transformed_polygon->add_outline(new_outline);
+		const Vector<Vector<Vector2>> outlines = layer_tile_data.navigation_polygon->get_outlines();
+		int outline_count = outlines.size();
+
+		Vector<Vector<Vector2>> new_outlines;
+		new_outlines.resize(outline_count);
+
+		for (int i = 0; i < outline_count; i++) {
+			new_outlines.write[i] = get_transformed_vertices(outlines[i], p_flip_h, p_flip_v, p_transpose);
 		}
 
-		PackedInt32Array indices;
-		indices.resize(new_points.size());
-		int *w = indices.ptrw();
-		for (int i = 0; i < new_points.size(); i++) {
-			w[i] = i;
-		}
-		transformed_polygon->add_polygon(indices);
+		transformed_polygon->set_data(new_points, layer_tile_data.navigation_polygon->get_polygons(), new_outlines);
+
 		layer_tile_data.transformed_navigation_polygon[key] = transformed_polygon;
 		return transformed_polygon;
 	} else {

@@ -44,7 +44,17 @@ SwFixed mathMean(SwFixed angle1, SwFixed angle2)
 }
 
 
-bool mathSmallCubic(const SwPoint* base, SwFixed& angleIn, SwFixed& angleMid, SwFixed& angleOut)
+bool mathSmallCubic(const SwPoint* base)
+{
+    auto d1 = base[2] - base[3];
+    auto d2 = base[1] - base[2];
+    auto d3 = base[0] - base[1];
+
+    return d1.small() && d2.small() && d3.small();
+}
+
+
+bool mathFlatCubic(const SwPoint* base, SwFixed& angleIn, SwFixed& angleMid, SwFixed& angleOut)
 {
     auto d1 = base[2] - base[3];
     auto d2 = base[1] - base[2];
@@ -52,12 +62,7 @@ bool mathSmallCubic(const SwPoint* base, SwFixed& angleIn, SwFixed& angleMid, Sw
 
     if (d1.small()) {
         if (d2.small()) {
-            if (d3.small()) {
-                angleIn = angleMid = angleOut = 0;
-                return true;
-            } else {
-                angleIn = angleMid = angleOut = mathAtan(d3);
-            }
+            angleIn = angleMid = angleOut = mathAtan(d3);
         } else {
             if (d3.small()) {
                 angleIn = angleMid = angleOut = mathAtan(d2);
@@ -164,8 +169,8 @@ void mathRotate(SwPoint& pt, SwFixed angle)
     auto cosv = cosf(radian);
     auto sinv = sinf(radian);
 
-    pt.x = SwCoord(roundf((v.x * cosv - v.y * sinv) * 64.0f));
-    pt.y = SwCoord(roundf((v.x * sinv + v.y * cosv) * 64.0f));
+    pt.x = SwCoord(nearbyint((v.x * cosv - v.y * sinv) * 64.0f));
+    pt.y = SwCoord(nearbyint((v.x * sinv + v.y * cosv) * 64.0f));
 }
 
 
@@ -179,7 +184,7 @@ SwFixed mathTan(SwFixed angle)
 SwFixed mathAtan(const SwPoint& pt)
 {
     if (pt.zero()) return 0;
-    return SwFixed(atan2f(TO_FLOAT(pt.y), TO_FLOAT(pt.x)) * (180.0f / MATH_PI) * 65536.0f);
+    return SwFixed(mathAtan2(TO_FLOAT(pt.y), TO_FLOAT(pt.x)) * (180.0f / MATH_PI) * 65536.0f);
 }
 
 
@@ -254,12 +259,10 @@ SwFixed mathDiff(SwFixed angle1, SwFixed angle2)
 }
 
 
-SwPoint mathTransform(const Point* to, const Matrix* transform)
+SwPoint mathTransform(const Point* to, const Matrix& transform)
 {
-    if (!transform) return {TO_SWCOORD(to->x), TO_SWCOORD(to->y)};
-
-    auto tx = to->x * transform->e11 + to->y * transform->e12 + transform->e13;
-    auto ty = to->x * transform->e21 + to->y * transform->e22 + transform->e23;
+    auto tx = to->x * transform.e11 + to->y * transform.e12 + transform.e13;
+    auto ty = to->x * transform.e21 + to->y * transform.e22 + transform.e23;
 
     return {TO_SWCOORD(tx), TO_SWCOORD(ty)};
 }
@@ -309,10 +312,10 @@ bool mathUpdateOutlineBBox(const SwOutline* outline, const SwBBox& clipRegion, S
     //the rasterization region has to be rearranged.
     //https://github.com/Samsung/thorvg/issues/916
     if (fastTrack) {
-        renderRegion.min.x = static_cast<SwCoord>(round(xMin / 64.0f));
-        renderRegion.max.x = static_cast<SwCoord>(round(xMax / 64.0f));
-        renderRegion.min.y = static_cast<SwCoord>(round(yMin / 64.0f));
-        renderRegion.max.y = static_cast<SwCoord>(round(yMax / 64.0f));
+        renderRegion.min.x = static_cast<SwCoord>(nearbyint(xMin / 64.0f));
+        renderRegion.max.x = static_cast<SwCoord>(nearbyint(xMax / 64.0f));
+        renderRegion.min.y = static_cast<SwCoord>(nearbyint(yMin / 64.0f));
+        renderRegion.max.y = static_cast<SwCoord>(nearbyint(yMax / 64.0f));
     } else {
         renderRegion.min.x = xMin >> 6;
         renderRegion.max.x = (xMax + 63) >> 6;

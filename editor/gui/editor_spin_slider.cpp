@@ -35,6 +35,11 @@
 #include "core/os/keyboard.h"
 #include "editor/editor_settings.h"
 #include "editor/themes/editor_scale.h"
+#include "scene/theme/theme_db.h"
+
+bool EditorSpinSlider::is_text_field() const {
+	return true;
+}
 
 String EditorSpinSlider::get_tooltip(const Point2 &p_pos) const {
 	if (!read_only && grabber->is_visible()) {
@@ -300,7 +305,7 @@ void EditorSpinSlider::_update_value_input_stylebox() {
 		stylebox->set_content_margin(SIDE_LEFT, (!get_label().is_empty() ? 23 : 16) * EDSCALE);
 	}
 
-	value_input->add_theme_style_override("normal", stylebox);
+	value_input->add_theme_style_override(CoreStringName(normal), stylebox);
 }
 
 void EditorSpinSlider::_draw_spin_slider() {
@@ -314,8 +319,8 @@ void EditorSpinSlider::_draw_spin_slider() {
 	if (!flat) {
 		draw_style_box(sb, Rect2(Vector2(), size));
 	}
-	Ref<Font> font = get_theme_font(SNAME("font"), SNAME("LineEdit"));
-	int font_size = get_theme_font_size(SNAME("font_size"), SNAME("LineEdit"));
+	Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("LineEdit"));
+	int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("LineEdit"));
 	int sep_base = 4 * EDSCALE;
 	int sep = sep_base + sb->get_offset().x; //make it have the same margin on both sides, looks better
 
@@ -328,7 +333,7 @@ void EditorSpinSlider::_draw_spin_slider() {
 
 	int vofs = (size.height - font->get_height(font_size)) / 2 + font->get_ascent(font_size);
 
-	Color fc = get_theme_color(is_read_only() ? SNAME("font_uneditable_color") : SNAME("font_color"), SNAME("LineEdit"));
+	Color fc = get_theme_color(is_read_only() ? SNAME("font_uneditable_color") : SceneStringName(font_color), SNAME("LineEdit"));
 	Color lc = get_theme_color(is_read_only() ? SNAME("read_only_label_color") : SNAME("label_color"));
 
 	if (flat && !label.is_empty()) {
@@ -379,7 +384,7 @@ void EditorSpinSlider::_draw_spin_slider() {
 
 	if (!hide_slider) {
 		if (get_step() == 1) {
-			Ref<Texture2D> updown2 = get_theme_icon(is_read_only() ? SNAME("updown_disabled") : SNAME("updown"), SNAME("SpinBox"));
+			Ref<Texture2D> updown2 = is_read_only() ? theme_cache.updown_disabled_icon : theme_cache.updown_icon;
 			int updown_vofs = (size.height - updown2->get_height()) / 2;
 			if (rtl) {
 				updown_offset = sb->get_margin(SIDE_LEFT);
@@ -514,8 +519,8 @@ LineEdit *EditorSpinSlider::get_line_edit() {
 
 Size2 EditorSpinSlider::get_minimum_size() const {
 	Ref<StyleBox> sb = get_theme_stylebox(CoreStringName(normal), SNAME("LineEdit"));
-	Ref<Font> font = get_theme_font(SNAME("font"), SNAME("LineEdit"));
-	int font_size = get_theme_font_size(SNAME("font_size"), SNAME("LineEdit"));
+	Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("LineEdit"));
+	int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("LineEdit"));
 
 	Size2 ms = sb->get_minimum_size();
 	ms.height += font->get_height(font_size);
@@ -610,13 +615,13 @@ void EditorSpinSlider::_value_focus_exited() {
 	// -> TAB was pressed
 	// -> modal_close was not called
 	// -> need to close/hide manually
-	if (value_input_closed_frame != Engine::get_singleton()->get_frames_drawn()) {
+	if (!is_visible_in_tree() || value_input_closed_frame != Engine::get_singleton()->get_frames_drawn()) {
+		// Hidden or something else took focus.
 		if (value_input_popup) {
 			value_input_popup->hide();
 		}
-		//tab was pressed
 	} else {
-		//enter, click, esc
+		// Enter or Esc was pressed.
 		grab_focus();
 	}
 
@@ -697,6 +702,9 @@ void EditorSpinSlider::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("ungrabbed"));
 	ADD_SIGNAL(MethodInfo("value_focus_entered"));
 	ADD_SIGNAL(MethodInfo("value_focus_exited"));
+
+	BIND_THEME_ITEM_CUSTOM(Theme::DATA_TYPE_ICON, EditorSpinSlider, updown_icon, "updown");
+	BIND_THEME_ITEM_CUSTOM(Theme::DATA_TYPE_ICON, EditorSpinSlider, updown_disabled_icon, "updown_disabled");
 }
 
 void EditorSpinSlider::_ensure_input_popup() {
