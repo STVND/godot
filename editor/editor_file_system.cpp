@@ -410,11 +410,13 @@ void EditorFileSystem::_scan_filesystem() {
 	new_filesystem->parent = nullptr;
 
 	ScannedDirectory *sd;
+	HashSet<String> *processed_files = nullptr;
 	// On the first scan, the first_scan_root_dir is created in _first_scan_filesystem.
 	if (first_scan) {
 		sd = first_scan_root_dir;
 		// Will be updated on scan.
 		ResourceUID::get_singleton()->clear();
+		processed_files = memnew(HashSet<String>());
 	} else {
 		Ref<DirAccess> d = DirAccess::create(DirAccess::ACCESS_RESOURCES);
 		sd = memnew(ScannedDirectory);
@@ -422,14 +424,18 @@ void EditorFileSystem::_scan_filesystem() {
 		nb_files_total = _scan_new_dir(sd, d);
 	}
 
-	_process_file_system(sd, new_filesystem, sp);
+	_process_file_system(sd, new_filesystem, sp, processed_files);
 
+	if (first_scan) {
+		_process_removed_files(*processed_files);
+	}
 	dep_update_list.clear();
 	file_cache.clear(); //clear caches, no longer needed
 
 	if (first_scan) {
 		memdelete(first_scan_root_dir);
 		first_scan_root_dir = nullptr;
+		memdelete(processed_files);
 	} else {
 		//on the first scan this is done from the main thread after re-importing
 		_save_filesystem_cache();
@@ -990,7 +996,7 @@ int EditorFileSystem::_scan_new_dir(ScannedDirectory *p_dir, Ref<DirAccess> &da)
 	return nb_files_total_scan;
 }
 
-void EditorFileSystem::_process_file_system(const ScannedDirectory *p_scan_dir, EditorFileSystemDirectory *p_dir, ScanProgress &p_progress) {
+void EditorFileSystem::_process_file_system(const ScannedDirectory *p_scan_dir, EditorFileSystemDirectory *p_dir, ScanProgress &p_progress, HashSet<String> *r_processed_files) {
 	p_dir->modified_time = FileAccess::get_modified_time(p_scan_dir->full_path);
 
 	for (ScannedDirectory *scan_sub_dir : p_scan_dir->subdirs) {
@@ -998,7 +1004,7 @@ void EditorFileSystem::_process_file_system(const ScannedDirectory *p_scan_dir, 
 		sub_dir->parent = p_dir;
 		sub_dir->name = scan_sub_dir->name;
 		p_dir->subdirs.push_back(sub_dir);
-		_process_file_system(scan_sub_dir, sub_dir, p_progress);
+		_process_file_system(scan_sub_dir, sub_dir, p_progress, r_processed_files);
 	}
 
 	for (const String &scan_file : p_scan_dir->files) {
@@ -1013,6 +1019,10 @@ void EditorFileSystem::_process_file_system(const ScannedDirectory *p_scan_dir, 
 		EditorFileSystemDirectory::FileInfo *fi = memnew(EditorFileSystemDirectory::FileInfo);
 		fi->file = scan_file;
 		p_dir->files.push_back(fi);
+
+		if (r_processed_files) {
+			r_processed_files->insert(path);
+		}
 
 		FileCache *fc = file_cache.getptr(path);
 		uint64_t mt = FileAccess::get_modified_time(path);
@@ -1065,7 +1075,7 @@ void EditorFileSystem::_process_file_system(const ScannedDirectory *p_scan_dir, 
 				fi->script_class_name = _get_global_script_class(fi->type, path, &fi->script_class_extends, &fi->script_class_icon_path);
 				fi->modified_time = 0;
 				fi->import_modified_time = 0;
-				fi->import_valid = fi->type == "TextFile" ? true : ResourceLoader::is_import_valid(path);
+				fi->import_valid = (fi->type == "TextFile" || fi->type == "OtherFile") ? true : ResourceLoader::is_import_valid(path);
 
 				ItemAction ia;
 				ia.action = ItemAction::ACTION_FILE_TEST_REIMPORT;
@@ -1108,6 +1118,9 @@ void EditorFileSystem::_process_file_system(const ScannedDirectory *p_scan_dir, 
 				if (fi->type == "" && textfile_extensions.has(ext)) {
 					fi->type = "TextFile";
 				}
+				if (fi->type == "" && other_file_extensions.has(ext)) {
+					fi->type = "OtherFile";
+				}
 				fi->uid = ResourceLoader::get_resource_uid(path);
 				fi->script_class_name = _get_global_script_class(fi->type, path, &fi->script_class_extends, &fi->script_class_icon_path);
 				fi->deps = _get_dependencies(path);
@@ -1136,6 +1149,20 @@ void EditorFileSystem::_process_file_system(const ScannedDirectory *p_scan_dir, 
 		}
 
 		p_progress.increment();
+	}
+}
+
+void EditorFileSystem::_process_removed_files(const HashSet<String> &p_processed_files) {
+	for (const KeyValue<String, EditorFileSystem::FileCache> &kv : file_cache) {
+		if (!p_processed_files.has(kv.key)) {
+			if (ClassDB::is_parent_class(kv.value.type, SNAME("Script"))) {
+				// A script has been removed from disk since the last startup. The documentation needs to be updated.
+				// There's no need to add the path in update_script_paths since that is exclusively for updating global class names,
+				// which is handled in _first_scan_filesystem before the full scan to ensure plugins and autoloads can be created.
+				MutexLock update_script_lock(update_script_mutex);
+				update_script_paths_documentation.insert(kv.key);
+			}
+		}
 	}
 }
 
@@ -1206,7 +1233,7 @@ void EditorFileSystem::_scan_fs_changes(EditorFileSystemDirectory *p_dir, ScanPr
 					int nb_files_dir = _scan_new_dir(&sd, d);
 					p_progress.hi += nb_files_dir;
 					diff_nb_files += nb_files_dir;
-					_process_file_system(&sd, efd, p_progress);
+					_process_file_system(&sd, efd, p_progress, nullptr);
 
 					ItemAction ia;
 					ia.action = ItemAction::ACTION_DIR_ADD;
@@ -1239,8 +1266,11 @@ void EditorFileSystem::_scan_fs_changes(EditorFileSystemDirectory *p_dir, ScanPr
 					if (fi->type == "" && textfile_extensions.has(ext)) {
 						fi->type = "TextFile";
 					}
+					if (fi->type == "" && other_file_extensions.has(ext)) {
+						fi->type = "OtherFile";
+					}
 					fi->script_class_name = _get_global_script_class(fi->type, path, &fi->script_class_extends, &fi->script_class_icon_path);
-					fi->import_valid = fi->type == "TextFile" ? true : ResourceLoader::is_import_valid(path);
+					fi->import_valid = (fi->type == "TextFile" || fi->type == "OtherFile") ? true : ResourceLoader::is_import_valid(path);
 					fi->import_group_file = ResourceLoader::get_import_group_file(path);
 
 					{
@@ -1872,7 +1902,12 @@ void EditorFileSystem::_update_script_classes() {
 
 		EditorProgress *ep = nullptr;
 		if (update_script_paths.size() > 1) {
-			ep = memnew(EditorProgress("update_scripts_classes", TTR("Registering global classes..."), update_script_paths.size()));
+			if (MessageQueue::get_singleton()->is_flushing()) {
+				// Use background progress when message queue is flushing.
+				ep = memnew(EditorProgress("update_scripts_classes", TTR("Registering global classes..."), update_script_paths.size(), false, true));
+			} else {
+				ep = memnew(EditorProgress("update_scripts_classes", TTR("Registering global classes..."), update_script_paths.size()));
+			}
 		}
 
 		int step_count = 0;
@@ -1911,7 +1946,12 @@ void EditorFileSystem::_update_script_documentation() {
 
 	EditorProgress *ep = nullptr;
 	if (update_script_paths_documentation.size() > 1) {
-		ep = memnew(EditorProgress("update_script_paths_documentation", TTR("Updating scripts documentation"), update_script_paths_documentation.size()));
+		if (MessageQueue::get_singleton()->is_flushing()) {
+			// Use background progress when message queue is flushing.
+			ep = memnew(EditorProgress("update_script_paths_documentation", TTR("Updating scripts documentation"), update_script_paths_documentation.size(), false, true));
+		} else {
+			ep = memnew(EditorProgress("update_script_paths_documentation", TTR("Updating scripts documentation"), update_script_paths_documentation.size()));
+		}
 	}
 
 	int step_count = 0;
@@ -2084,6 +2124,9 @@ void EditorFileSystem::update_files(const Vector<String> &p_script_paths) {
 			if (type.is_empty() && textfile_extensions.has(file.get_extension())) {
 				type = "TextFile";
 			}
+			if (type.is_empty() && other_file_extensions.has(file.get_extension())) {
+				type = "OtherFile";
+			}
 			String script_class = ResourceLoader::get_resource_script_class(file);
 
 			ResourceUID::ID uid = ResourceLoader::get_resource_uid(file);
@@ -2103,7 +2146,7 @@ void EditorFileSystem::update_files(const Vector<String> &p_script_paths) {
 				EditorFileSystemDirectory::FileInfo *fi = memnew(EditorFileSystemDirectory::FileInfo);
 				fi->file = file_name;
 				fi->import_modified_time = 0;
-				fi->import_valid = type == "TextFile" ? true : ResourceLoader::is_import_valid(file);
+				fi->import_valid = (type == "TextFile" || type == "OtherFile") ? true : ResourceLoader::is_import_valid(file);
 
 				if (idx == fs->files.size()) {
 					fs->files.push_back(fi);
@@ -2127,7 +2170,7 @@ void EditorFileSystem::update_files(const Vector<String> &p_script_paths) {
 			fs->files[cpos]->import_group_file = ResourceLoader::get_import_group_file(file);
 			fs->files[cpos]->modified_time = FileAccess::get_modified_time(file);
 			fs->files[cpos]->deps = _get_dependencies(file);
-			fs->files[cpos]->import_valid = type == "TextFile" ? true : ResourceLoader::is_import_valid(file);
+			fs->files[cpos]->import_valid = (type == "TextFile" || type == "OtherFile") ? true : ResourceLoader::is_import_valid(file);
 
 			if (uid != ResourceUID::INVALID_ID) {
 				if (ResourceUID::get_singleton()->has_id(uid)) {
@@ -2384,6 +2427,9 @@ Error EditorFileSystem::_reimport_group(const String &p_group_file, const Vector
 		fs->files[cpos]->type = importer->get_resource_type();
 		if (fs->files[cpos]->type == "" && textfile_extensions.has(file.get_extension())) {
 			fs->files[cpos]->type = "TextFile";
+		}
+		if (fs->files[cpos]->type == "" && other_file_extensions.has(file.get_extension())) {
+			fs->files[cpos]->type = "OtherFile";
 		}
 		fs->files[cpos]->import_valid = err == OK;
 
@@ -3085,6 +3131,7 @@ void EditorFileSystem::_update_extensions() {
 	valid_extensions.clear();
 	import_extensions.clear();
 	textfile_extensions.clear();
+	other_file_extensions.clear();
 
 	List<String> extensionsl;
 	ResourceLoader::get_recognized_extensions_for_type("", &extensionsl);
@@ -3099,6 +3146,14 @@ void EditorFileSystem::_update_extensions() {
 		}
 		valid_extensions.insert(E);
 		textfile_extensions.insert(E);
+	}
+	const Vector<String> other_file_ext = ((String)(EDITOR_GET("docks/filesystem/other_file_extensions"))).split(",", false);
+	for (const String &E : other_file_ext) {
+		if (valid_extensions.has(E)) {
+			continue;
+		}
+		valid_extensions.insert(E);
+		other_file_extensions.insert(E);
 	}
 
 	extensionsl.clear();

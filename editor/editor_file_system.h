@@ -235,11 +235,12 @@ class EditorFileSystem : public Node {
 	int _insert_actions_delete_files_directory(EditorFileSystemDirectory *p_dir);
 
 	HashSet<String> textfile_extensions;
+	HashSet<String> other_file_extensions;
 	HashSet<String> valid_extensions;
 	HashSet<String> import_extensions;
 
 	int _scan_new_dir(ScannedDirectory *p_dir, Ref<DirAccess> &da);
-	void _process_file_system(const ScannedDirectory *p_scan_dir, EditorFileSystemDirectory *p_dir, ScanProgress &p_progress);
+	void _process_file_system(const ScannedDirectory *p_scan_dir, EditorFileSystemDirectory *p_dir, ScanProgress &p_progress, HashSet<String> *p_processed_files);
 
 	Thread thread_sources;
 	bool scanning_changes = false;
@@ -287,6 +288,7 @@ class EditorFileSystem : public Node {
 	void _update_script_classes();
 	void _update_script_documentation();
 	void _process_update_pending();
+	void _process_removed_files(const HashSet<String> &p_processed_files);
 
 	Mutex update_scene_mutex;
 	HashSet<String> update_scene_paths;
