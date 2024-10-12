@@ -113,6 +113,12 @@ public:
 
 	/* TEXTURE API */
 
+	enum TextureType {
+		TEXTURE_TYPE_2D,
+		TEXTURE_TYPE_LAYERED,
+		TEXTURE_TYPE_3D,
+	};
+
 	enum TextureLayeredType {
 		TEXTURE_LAYERED_2D_ARRAY,
 		TEXTURE_LAYERED_CUBEMAP,
@@ -131,10 +137,14 @@ public:
 	virtual RID texture_2d_create(const Ref<Image> &p_image) = 0;
 	virtual RID texture_2d_layered_create(const Vector<Ref<Image>> &p_layers, TextureLayeredType p_layered_type) = 0;
 	virtual RID texture_3d_create(Image::Format, int p_width, int p_height, int p_depth, bool p_mipmaps, const Vector<Ref<Image>> &p_data) = 0; //all slices, then all the mipmaps, must be coherent
+	virtual RID texture_external_create(int p_width, int p_height, uint64_t p_external_buffer = 0) = 0;
 	virtual RID texture_proxy_create(RID p_base) = 0;
+
+	virtual RID texture_create_from_native_handle(TextureType p_type, Image::Format p_format, uint64_t p_native_handle, int p_width, int p_height, int p_depth, int p_layers = 1, TextureLayeredType p_layered_type = TEXTURE_LAYERED_2D_ARRAY) = 0;
 
 	virtual void texture_2d_update(RID p_texture, const Ref<Image> &p_image, int p_layer = 0) = 0;
 	virtual void texture_3d_update(RID p_texture, const Vector<Ref<Image>> &p_data) = 0;
+	virtual void texture_external_update(RID p_texture, int p_width, int p_height, uint64_t p_external_buffer = 0) = 0;
 	virtual void texture_proxy_update(RID p_texture, RID p_proxy_to) = 0;
 
 	// These two APIs can be used together or in combination with the others.
@@ -189,6 +199,17 @@ public:
 	virtual RID texture_get_rd_texture(RID p_texture, bool p_srgb = false) const = 0;
 	virtual uint64_t texture_get_native_handle(RID p_texture, bool p_srgb = false) const = 0;
 
+	/* PIPELINES API */
+
+	enum PipelineSource {
+		PIPELINE_SOURCE_CANVAS,
+		PIPELINE_SOURCE_MESH,
+		PIPELINE_SOURCE_SURFACE,
+		PIPELINE_SOURCE_DRAW,
+		PIPELINE_SOURCE_SPECIALIZATION,
+		PIPELINE_SOURCE_MAX
+	};
+
 	/* SHADER API */
 
 	enum ShaderMode {
@@ -201,6 +222,7 @@ public:
 	};
 
 	virtual RID shader_create() = 0;
+	virtual RID shader_create_from_code(const String &p_code, const String &p_path_hint = String()) = 0;
 
 	virtual void shader_set_code(RID p_shader, const String &p_code) = 0;
 	virtual void shader_set_path_hint(RID p_shader, const String &p_path) = 0;
@@ -232,6 +254,7 @@ public:
 	};
 
 	virtual RID material_create() = 0;
+	virtual RID material_create_from_shader(RID p_next_pass, int p_render_priority, RID p_shader) = 0;
 
 	virtual void material_set_shader(RID p_shader_material, RID p_shader) = 0;
 
@@ -1639,6 +1662,7 @@ public:
 		GLOBAL_VAR_TYPE_SAMPLER2DARRAY,
 		GLOBAL_VAR_TYPE_SAMPLER3D,
 		GLOBAL_VAR_TYPE_SAMPLERCUBE,
+		GLOBAL_VAR_TYPE_SAMPLEREXT,
 		GLOBAL_VAR_TYPE_MAX
 	};
 
@@ -1686,6 +1710,11 @@ public:
 		RENDERING_INFO_TEXTURE_MEM_USED,
 		RENDERING_INFO_BUFFER_MEM_USED,
 		RENDERING_INFO_VIDEO_MEM_USED,
+		RENDERING_INFO_PIPELINE_COMPILATIONS_CANVAS,
+		RENDERING_INFO_PIPELINE_COMPILATIONS_MESH,
+		RENDERING_INFO_PIPELINE_COMPILATIONS_SURFACE,
+		RENDERING_INFO_PIPELINE_COMPILATIONS_DRAW,
+		RENDERING_INFO_PIPELINE_COMPILATIONS_SPECIALIZATION,
 		RENDERING_INFO_MAX
 	};
 
@@ -1729,7 +1758,7 @@ public:
 
 #ifndef DISABLE_DEPRECATED
 	// Never actually used, should be removed when we can break compatibility.
-	enum Features{
+	enum Features {
 		FEATURE_SHADERS,
 		FEATURE_MULTITHREADED,
 	};
@@ -1793,8 +1822,10 @@ private:
 };
 
 // Make variant understand the enums.
+VARIANT_ENUM_CAST(RenderingServer::TextureType);
 VARIANT_ENUM_CAST(RenderingServer::TextureLayeredType);
 VARIANT_ENUM_CAST(RenderingServer::CubeMapLayer);
+VARIANT_ENUM_CAST(RenderingServer::PipelineSource);
 VARIANT_ENUM_CAST(RenderingServer::ShaderMode);
 VARIANT_ENUM_CAST(RenderingServer::ArrayType);
 VARIANT_BITFIELD_CAST(RenderingServer::ArrayFormat);

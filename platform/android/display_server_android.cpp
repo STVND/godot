@@ -304,6 +304,13 @@ int DisplayServerAndroid::virtual_keyboard_get_height() const {
 	return godot_io_java->get_vk_height();
 }
 
+bool DisplayServerAndroid::has_hardware_keyboard() const {
+	GodotIOJavaWrapper *godot_io_java = OS_Android::get_singleton()->get_godot_io_java();
+	ERR_FAIL_NULL_V(godot_io_java, false);
+
+	return godot_io_java->has_hardware_keyboard();
+}
+
 void DisplayServerAndroid::window_set_window_event_callback(const Callable &p_callable, DisplayServer::WindowID p_window) {
 	window_event_callback = p_callable;
 }
@@ -607,11 +614,19 @@ DisplayServerAndroid::DisplayServerAndroid(const String &p_rendering_driver, Dis
 
 	if (rendering_context) {
 		if (rendering_context->initialize() != OK) {
-			ERR_PRINT(vformat("Failed to initialize %s context", rendering_driver));
 			memdelete(rendering_context);
 			rendering_context = nullptr;
-			r_error = ERR_UNAVAILABLE;
-			return;
+			bool fallback_to_opengl3 = GLOBAL_GET("rendering/rendering_device/fallback_to_opengl3");
+			if (fallback_to_opengl3 && rendering_driver != "opengl3") {
+				WARN_PRINT("Your device seem not to support Vulkan, switching to OpenGL 3.");
+				rendering_driver = "opengl3";
+				OS::get_singleton()->set_current_rendering_method("gl_compatibility");
+				OS::get_singleton()->set_current_rendering_driver_name(rendering_driver);
+			} else {
+				ERR_PRINT(vformat("Failed to initialize %s context", rendering_driver));
+				r_error = ERR_UNAVAILABLE;
+				return;
+			}
 		}
 
 		union {

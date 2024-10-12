@@ -689,6 +689,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_icon("forward_folder", "FileDialog", icons["arrow_right"]);
 	theme->set_icon("reload", "FileDialog", icons["reload"]);
 	theme->set_icon("toggle_hidden", "FileDialog", icons["visibility_visible"]);
+	theme->set_icon("toggle_filename_filter", "FileDialog", icons["toggle_filename_filter"]);
 	theme->set_icon("folder", "FileDialog", icons["folder"]);
 	theme->set_icon("file", "FileDialog", icons["file"]);
 	theme->set_icon("create_folder", "FileDialog", icons["folder_create"]);
@@ -1211,6 +1212,9 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_constant("v_separation", "VFlowContainer", Math::round(4 * scale));
 
 	theme->set_stylebox(SceneStringName(panel), "PanelContainer", make_flat_stylebox(style_normal_color, 0, 0, 0, 0));
+	theme->set_stylebox("split_bar_background", "SplitContainer", make_empty_stylebox(0, 0, 0, 0));
+	theme->set_stylebox("split_bar_background", "VSplitContainer", make_empty_stylebox(0, 0, 0, 0));
+	theme->set_stylebox("split_bar_background", "HSplitContainer", make_empty_stylebox(0, 0, 0, 0));
 
 	theme->set_icon("zoom_out", "GraphEdit", icons["zoom_less"]);
 	theme->set_icon("zoom_in", "GraphEdit", icons["zoom_more"]);

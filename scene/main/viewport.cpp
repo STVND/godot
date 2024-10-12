@@ -111,6 +111,9 @@ void ViewportTexture::set_viewport_path_in_scene(const NodePath &p_path) {
 	if (get_local_scene() && !path.is_empty()) {
 		setup_local_to_scene();
 	} else {
+		if (path.is_empty()) {
+			vp_changed = false;
+		}
 		emit_changed();
 	}
 }
@@ -121,9 +124,7 @@ NodePath ViewportTexture::get_viewport_path_in_scene() const {
 
 int ViewportTexture::get_width() const {
 	if (!vp) {
-		if (!vp_pending) {
-			ERR_PRINT("Viewport Texture must be set to use it.");
-		}
+		_err_print_viewport_not_set();
 		return 0;
 	}
 	return vp->size.width;
@@ -131,9 +132,7 @@ int ViewportTexture::get_width() const {
 
 int ViewportTexture::get_height() const {
 	if (!vp) {
-		if (!vp_pending) {
-			ERR_PRINT("Viewport Texture must be set to use it.");
-		}
+		_err_print_viewport_not_set();
 		return 0;
 	}
 	return vp->size.height;
@@ -141,9 +140,7 @@ int ViewportTexture::get_height() const {
 
 Size2 ViewportTexture::get_size() const {
 	if (!vp) {
-		if (!vp_pending) {
-			ERR_PRINT("Viewport Texture must be set to use it.");
-		}
+		_err_print_viewport_not_set();
 		return Size2();
 	}
 	return vp->size;
@@ -163,12 +160,16 @@ bool ViewportTexture::has_alpha() const {
 
 Ref<Image> ViewportTexture::get_image() const {
 	if (!vp) {
-		if (!vp_pending) {
-			ERR_PRINT("Viewport Texture must be set to use it.");
-		}
+		_err_print_viewport_not_set();
 		return Ref<Image>();
 	}
 	return RS::get_singleton()->texture_2d_get(vp->texture_rid);
+}
+
+void ViewportTexture::_err_print_viewport_not_set() const {
+	if (!vp_pending && !vp_changed) {
+		ERR_PRINT("Viewport Texture must be set to use it.");
+	}
 }
 
 void ViewportTexture::_setup_local_to_scene(const Node *p_loc_scene) {
@@ -1399,7 +1400,7 @@ String Viewport::_gui_get_tooltip(Control *p_control, const Vector2 &p_pos, Cont
 	String tooltip;
 
 	while (p_control) {
-		tooltip = p_control->atr(p_control->get_tooltip(pos));
+		tooltip = p_control->get_tooltip(pos);
 
 		// Temporary solution for PopupMenus.
 		PopupMenu *menu = Object::cast_to<PopupMenu>(this);
@@ -1482,6 +1483,7 @@ void Viewport::_gui_show_tooltip() {
 	}
 
 	base_tooltip->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	base_tooltip->set_auto_translate_mode(tooltip_owner->get_tooltip_auto_translate_mode());
 
 	panel->set_transient(true);
 	panel->set_flag(Window::FLAG_NO_FOCUS, true);
@@ -2086,13 +2088,13 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 	}
 
 	if (mm.is_null() && mb.is_null() && p_event->is_action_type()) {
-		if (gui.dragging && p_event->is_action_pressed("ui_cancel") && Input::get_singleton()->is_action_just_pressed("ui_cancel")) {
+		if (gui.dragging && p_event->is_action_pressed(SNAME("ui_cancel")) && Input::get_singleton()->is_action_just_pressed(SNAME("ui_cancel"))) {
 			_perform_drop();
 			set_input_as_handled();
 			return;
 		}
 
-		if (p_event->is_action_pressed("ui_cancel")) {
+		if (p_event->is_action_pressed(SNAME("ui_cancel"))) {
 			// Cancel tooltip timer or hide tooltip when pressing Escape (this is standard behavior in most applications).
 			_gui_cancel_tooltip();
 			if (gui.tooltip_popup) {
@@ -2127,51 +2129,51 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 			if (joypadmotion_event.is_valid()) {
 				Input *input = Input::get_singleton();
 
-				if (p_event->is_action_pressed("ui_focus_next") && input->is_action_just_pressed("ui_focus_next")) {
+				if (p_event->is_action_pressed(SNAME("ui_focus_next")) && input->is_action_just_pressed(SNAME("ui_focus_next"))) {
 					next = from->find_next_valid_focus();
 				}
 
-				if (p_event->is_action_pressed("ui_focus_prev") && input->is_action_just_pressed("ui_focus_prev")) {
+				if (p_event->is_action_pressed(SNAME("ui_focus_prev")) && input->is_action_just_pressed(SNAME("ui_focus_prev"))) {
 					next = from->find_prev_valid_focus();
 				}
 
-				if (p_event->is_action_pressed("ui_up") && input->is_action_just_pressed("ui_up")) {
+				if (p_event->is_action_pressed(SNAME("ui_up")) && input->is_action_just_pressed(SNAME("ui_up"))) {
 					next = from->_get_focus_neighbor(SIDE_TOP);
 				}
 
-				if (p_event->is_action_pressed("ui_left") && input->is_action_just_pressed("ui_left")) {
+				if (p_event->is_action_pressed(SNAME("ui_left")) && input->is_action_just_pressed(SNAME("ui_left"))) {
 					next = from->_get_focus_neighbor(SIDE_LEFT);
 				}
 
-				if (p_event->is_action_pressed("ui_right") && input->is_action_just_pressed("ui_right")) {
+				if (p_event->is_action_pressed(SNAME("ui_right")) && input->is_action_just_pressed(SNAME("ui_right"))) {
 					next = from->_get_focus_neighbor(SIDE_RIGHT);
 				}
 
-				if (p_event->is_action_pressed("ui_down") && input->is_action_just_pressed("ui_down")) {
+				if (p_event->is_action_pressed(SNAME("ui_down")) && input->is_action_just_pressed(SNAME("ui_down"))) {
 					next = from->_get_focus_neighbor(SIDE_BOTTOM);
 				}
 			} else {
-				if (p_event->is_action_pressed("ui_focus_next", true, true)) {
+				if (p_event->is_action_pressed(SNAME("ui_focus_next"), true, true)) {
 					next = from->find_next_valid_focus();
 				}
 
-				if (p_event->is_action_pressed("ui_focus_prev", true, true)) {
+				if (p_event->is_action_pressed(SNAME("ui_focus_prev"), true, true)) {
 					next = from->find_prev_valid_focus();
 				}
 
-				if (p_event->is_action_pressed("ui_up", true, true)) {
+				if (p_event->is_action_pressed(SNAME("ui_up"), true, true)) {
 					next = from->_get_focus_neighbor(SIDE_TOP);
 				}
 
-				if (p_event->is_action_pressed("ui_left", true, true)) {
+				if (p_event->is_action_pressed(SNAME("ui_left"), true, true)) {
 					next = from->_get_focus_neighbor(SIDE_LEFT);
 				}
 
-				if (p_event->is_action_pressed("ui_right", true, true)) {
+				if (p_event->is_action_pressed(SNAME("ui_right"), true, true)) {
 					next = from->_get_focus_neighbor(SIDE_RIGHT);
 				}
 
-				if (p_event->is_action_pressed("ui_down", true, true)) {
+				if (p_event->is_action_pressed(SNAME("ui_down"), true, true)) {
 					next = from->_get_focus_neighbor(SIDE_BOTTOM);
 				}
 			}
@@ -4670,6 +4672,7 @@ void Viewport::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_as_audio_listener_2d", "enable"), &Viewport::set_as_audio_listener_2d);
 	ClassDB::bind_method(D_METHOD("is_audio_listener_2d"), &Viewport::is_audio_listener_2d);
+	ClassDB::bind_method(D_METHOD("get_audio_listener_2d"), &Viewport::get_audio_listener_2d);
 	ClassDB::bind_method(D_METHOD("get_camera_2d"), &Viewport::get_camera_2d);
 
 #ifndef _3D_DISABLED
@@ -4680,6 +4683,7 @@ void Viewport::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_use_own_world_3d", "enable"), &Viewport::set_use_own_world_3d);
 	ClassDB::bind_method(D_METHOD("is_using_own_world_3d"), &Viewport::is_using_own_world_3d);
 
+	ClassDB::bind_method(D_METHOD("get_audio_listener_3d"), &Viewport::get_audio_listener_3d);
 	ClassDB::bind_method(D_METHOD("get_camera_3d"), &Viewport::get_camera_3d);
 	ClassDB::bind_method(D_METHOD("set_as_audio_listener_3d", "enable"), &Viewport::set_as_audio_listener_3d);
 	ClassDB::bind_method(D_METHOD("is_audio_listener_3d"), &Viewport::is_audio_listener_3d);

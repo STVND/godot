@@ -933,7 +933,7 @@ void RasterizerSceneGLES3::_update_sky_radiance(RID p_env, const Projection &p_p
 	int max_processing_layer = sky->mipmap_count;
 
 	// Update radiance cubemap
-	if (sky->reflection_dirty && (sky->processing_layer > max_processing_layer || update_single_frame)) {
+	if (sky->reflection_dirty && (sky->processing_layer >= max_processing_layer || update_single_frame)) {
 		static const Vector3 view_normals[6] = {
 			Vector3(+1, 0, 0),
 			Vector3(-1, 0, 0),
@@ -2552,6 +2552,9 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 		glBindTexture(rt->view_count > 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D, rt->color);
 
 		copy_effects->copy_screen(render_data.luminance_multiplier);
+
+		scene_state.enable_gl_depth_test(true);
+		scene_state.enable_gl_depth_draw(true);
 	}
 
 	RENDER_TIMESTAMP("Render Opaque Pass");
@@ -3440,6 +3443,7 @@ void RasterizerSceneGLES3::_render_list_template(RenderListParameters *p_params,
 			}
 
 			material_storage->shaders.scene_shader.version_set_uniform(SceneShaderGLES3::MODEL_FLAGS, inst->flags_cache, shader->version, instance_variant, spec_constants);
+			material_storage->shaders.scene_shader.version_set_uniform(SceneShaderGLES3::INSTANCE_OFFSET, uint32_t(inst->shader_uniforms_offset), shader->version, instance_variant, spec_constants);
 
 			if (p_pass_mode == PASS_MODE_MATERIAL) {
 				material_storage->shaders.scene_shader.version_set_uniform(SceneShaderGLES3::UV_OFFSET, p_params->uv_offset, shader->version, instance_variant, spec_constants);
@@ -4122,6 +4126,9 @@ RasterizerSceneGLES3::RasterizerSceneGLES3() {
 		global_defines += "\n#define MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS " + itos(MAX_DIRECTIONAL_LIGHTS) + "\n";
 		global_defines += "\n#define MAX_FORWARD_LIGHTS " + itos(config->max_lights_per_object) + "u\n";
 		global_defines += "\n#define MAX_ROUGHNESS_LOD " + itos(sky_globals.roughness_layers - 1) + ".0\n";
+		if (config->force_vertex_shading) {
+			global_defines += "\n#define USE_VERTEX_LIGHTING\n";
+		}
 		material_storage->shaders.scene_shader.initialize(global_defines);
 		scene_globals.shader_default_version = material_storage->shaders.scene_shader.version_create();
 		material_storage->shaders.scene_shader.version_bind_shader(scene_globals.shader_default_version, SceneShaderGLES3::MODE_COLOR);

@@ -1483,7 +1483,7 @@ void ScriptEditor::_menu_option(int p_option) {
 
 				current->apply_code();
 
-				Error err = scr->reload(false); // Always hard reload the script before running.
+				Error err = scr->reload(true); // Always hard reload the script before running.
 				if (err != OK || !scr->is_valid()) {
 					EditorToaster::get_singleton()->popup_str(TTR("Cannot run the script because it contains errors, check the output log."), EditorToaster::SEVERITY_WARNING);
 					return;
@@ -2798,6 +2798,8 @@ void ScriptEditor::_reload_scripts(bool p_refresh_only) {
 				scr->set_source_code(rel_scr->get_source_code());
 				scr->set_last_modified_time(rel_scr->get_last_modified_time());
 				scr->reload(true);
+
+				update_docs_from_script(scr);
 			}
 
 			Ref<JSON> json = edited_res;
@@ -3101,6 +3103,7 @@ Variant ScriptEditor::get_drag_data_fw(const Point2 &p_point, Control *p_from) {
 		drag_preview->add_child(tf);
 	}
 	Label *label = memnew(Label(preview_name));
+	label->set_auto_translate_mode(AUTO_TRANSLATE_MODE_DISABLED); // Don't translate script names and class names.
 	drag_preview->add_child(label);
 	set_drag_preview(drag_preview);
 
@@ -3643,11 +3646,9 @@ void ScriptEditor::update_doc(const String &p_name) {
 void ScriptEditor::clear_docs_from_script(const Ref<Script> &p_script) {
 	ERR_FAIL_COND(p_script.is_null());
 
-	Vector<DocData::ClassDoc> documentations = p_script->get_documentation();
-	for (int j = 0; j < documentations.size(); j++) {
-		const DocData::ClassDoc &doc = documentations.get(j);
-		if (EditorHelp::get_doc_data()->has_doc(doc.name)) {
-			EditorHelp::get_doc_data()->remove_doc(doc.name);
+	for (const DocData::ClassDoc &cd : p_script->get_documentation()) {
+		if (EditorHelp::get_doc_data()->has_doc(cd.name)) {
+			EditorHelp::get_doc_data()->remove_doc(cd.name);
 		}
 	}
 }
@@ -3655,11 +3656,9 @@ void ScriptEditor::clear_docs_from_script(const Ref<Script> &p_script) {
 void ScriptEditor::update_docs_from_script(const Ref<Script> &p_script) {
 	ERR_FAIL_COND(p_script.is_null());
 
-	Vector<DocData::ClassDoc> documentations = p_script->get_documentation();
-	for (int j = 0; j < documentations.size(); j++) {
-		const DocData::ClassDoc &doc = documentations.get(j);
-		EditorHelp::get_doc_data()->add_doc(doc);
-		update_doc(doc.name);
+	for (const DocData::ClassDoc &cd : p_script->get_documentation()) {
+		EditorHelp::get_doc_data()->add_doc(cd);
+		update_doc(cd.name);
 	}
 }
 
@@ -4109,9 +4108,9 @@ ScriptEditor::ScriptEditor(WindowWrapper *p_wrapper) {
 	script_list = memnew(ItemList);
 	script_list->set_auto_translate_mode(AUTO_TRANSLATE_MODE_DISABLED);
 	scripts_vbox->add_child(script_list);
-	script_list->set_custom_minimum_size(Size2(150, 60) * EDSCALE); //need to give a bit of limit to avoid it from disappearing
+	script_list->set_custom_minimum_size(Size2(100, 60) * EDSCALE); //need to give a bit of limit to avoid it from disappearing
 	script_list->set_v_size_flags(SIZE_EXPAND_FILL);
-	script_split->set_split_offset(70 * EDSCALE);
+	script_split->set_split_offset(200 * EDSCALE);
 	_sort_list_on_update = true;
 	script_list->connect("item_clicked", callable_mp(this, &ScriptEditor::_script_list_clicked), CONNECT_DEFERRED);
 	script_list->set_allow_rmb_select(true);

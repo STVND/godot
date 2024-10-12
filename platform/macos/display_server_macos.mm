@@ -1893,6 +1893,12 @@ void DisplayServerMacOS::window_set_current_screen(int p_screen, WindowID p_wind
 		was_fullscreen = true;
 	}
 
+	bool was_maximized = false;
+	if (!was_fullscreen && NSEqualRects([wd.window_object frame], [[wd.window_object screen] visibleFrame])) {
+		[wd.window_object zoom:nil];
+		was_maximized = true;
+	}
+
 	Rect2i srect = screen_get_usable_rect(p_screen);
 	Point2i wpos = window_get_position(p_window) - screen_get_position(window_get_current_screen(p_window));
 	Size2i wsize = window_get_size(p_window);
@@ -1900,6 +1906,10 @@ void DisplayServerMacOS::window_set_current_screen(int p_screen, WindowID p_wind
 
 	wpos = wpos.clamp(srect.position, srect.position + srect.size - wsize / 3);
 	window_set_position(wpos, p_window);
+
+	if (was_maximized) {
+		[wd.window_object zoom:nil];
+	}
 
 	if (was_fullscreen) {
 		// Re-enter fullscreen mode.
@@ -3649,8 +3659,16 @@ DisplayServerMacOS::DisplayServerMacOS(const String &p_rendering_driver, WindowM
 		if (rendering_context->initialize() != OK) {
 			memdelete(rendering_context);
 			rendering_context = nullptr;
-			r_error = ERR_CANT_CREATE;
-			ERR_FAIL_MSG("Could not initialize " + rendering_driver);
+			bool fallback_to_opengl3 = GLOBAL_GET("rendering/rendering_device/fallback_to_opengl3");
+			if (fallback_to_opengl3 && rendering_driver != "opengl3") {
+				WARN_PRINT("Your device seem not to support MoltenVK or Metal, switching to OpenGL 3.");
+				rendering_driver = "opengl3";
+				OS::get_singleton()->set_current_rendering_method("gl_compatibility");
+				OS::get_singleton()->set_current_rendering_driver_name(rendering_driver);
+			} else {
+				r_error = ERR_CANT_CREATE;
+				ERR_FAIL_MSG("Could not initialize " + rendering_driver);
+			}
 		}
 	}
 #endif
