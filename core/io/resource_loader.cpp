@@ -162,7 +162,7 @@ Ref<Resource> ResourceFormatLoader::load(const String &p_path, const String &p_o
 		}
 	}
 
-	ERR_FAIL_V_MSG(Ref<Resource>(), "Failed to load resource '" + p_path + "'. ResourceFormatLoader::load was not implemented for this resource type.");
+	ERR_FAIL_V_MSG(Ref<Resource>(), vformat("Failed to load resource '%s'. ResourceFormatLoader::load was not implemented for this resource type.", p_path));
 }
 
 void ResourceFormatLoader::get_dependencies(const String &p_path, List<String> *p_dependencies, bool p_add_types) {
@@ -282,13 +282,13 @@ Ref<Resource> ResourceLoader::_load(const String &p_path, const String &p_origin
 	load_paths_stack.push_back(original_path);
 
 	// Try all loaders and pick the first match for the type hint
-	bool found = false;
+	bool loader_found = false;
 	Ref<Resource> res;
 	for (int i = 0; i < loader_count; i++) {
 		if (!loader[i]->recognize_path(p_path, p_type_hint)) {
 			continue;
 		}
-		found = true;
+		loader_found = true;
 		res = loader[i]->load(p_path, original_path, r_error, p_use_sub_threads, r_progress, p_cache_mode);
 		if (!res.is_null()) {
 			break;
@@ -303,15 +303,24 @@ Ref<Resource> ResourceLoader::_load(const String &p_path, const String &p_origin
 		return res;
 	}
 
-	ERR_FAIL_COND_V_MSG(found, Ref<Resource>(),
-			vformat("Failed loading resource: %s. Make sure resources have been imported by opening the project in the editor at least once.", p_path));
+	if (!loader_found) {
+		if (r_error) {
+			*r_error = ERR_FILE_UNRECOGNIZED;
+		}
+		ERR_FAIL_V_MSG(Ref<Resource>(), vformat("No loader found for resource: %s (expected type: %s)", p_path, p_type_hint));
+	}
 
 #ifdef TOOLS_ENABLED
 	Ref<FileAccess> file_check = FileAccess::create(FileAccess::ACCESS_RESOURCES);
-	ERR_FAIL_COND_V_MSG(!file_check->file_exists(p_path), Ref<Resource>(), vformat("Resource file not found: %s (expected type: %s)", p_path, p_type_hint));
+	if (!file_check->file_exists(p_path)) {
+		if (r_error) {
+			*r_error = ERR_FILE_NOT_FOUND;
+		}
+		ERR_FAIL_V_MSG(Ref<Resource>(), vformat("Resource file not found: %s (expected type: %s)", p_path, p_type_hint));
+	}
 #endif
 
-	ERR_FAIL_V_MSG(Ref<Resource>(), vformat("No loader found for resource: %s (expected type: %s)", p_path, p_type_hint));
+	ERR_FAIL_V_MSG(Ref<Resource>(), vformat("Failed loading resource: %s. Make sure resources have been imported by opening the project in the editor at least once.", p_path));
 }
 
 // This implementation must allow re-entrancy for a task that started awaiting in a deeper stack frame.
@@ -1163,7 +1172,7 @@ String ResourceLoader::_path_remap(const String &p_path, bool *r_translation_rem
 		// An extra remap may still be necessary afterwards due to the text -> binary converter on export.
 
 		String locale = TranslationServer::get_singleton()->get_locale();
-		ERR_FAIL_COND_V_MSG(locale.length() < 2, p_path, "Could not remap path '" + p_path + "' for translation as configured locale '" + locale + "' is invalid.");
+		ERR_FAIL_COND_V_MSG(locale.length() < 2, p_path, vformat("Could not remap path '%s' for translation as configured locale '%s' is invalid.", p_path, locale));
 
 		Vector<String> &res_remaps = *translation_remaps.getptr(new_path);
 
@@ -1222,7 +1231,7 @@ String ResourceLoader::_path_remap(const String &p_path, bool *r_translation_rem
 					if (err == ERR_FILE_EOF) {
 						break;
 					} else if (err != OK) {
-						ERR_PRINT("Parse error: " + p_path + ".remap:" + itos(lines) + " error: " + error_text + ".");
+						ERR_PRINT(vformat("Parse error: %s.remap:%d error: %s.", p_path, lines, error_text));
 						break;
 					}
 

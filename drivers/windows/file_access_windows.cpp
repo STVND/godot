@@ -127,7 +127,7 @@ Error FileAccessWindows::open_internal(const String &p_path, int p_mode_flags) {
 	}
 
 #ifdef TOOLS_ENABLED
-	// Windows is case insensitive, but all other platforms are sensitive to it
+	// Windows is case insensitive in the default configuration, but other platforms can be sensitive to it
 	// To ease cross-platform development, we issue a warning if users try to access
 	// a file using the wrong case (which *works* on Windows, but won't on other
 	// platforms), we only check for relative paths, or paths in res:// or user://,
@@ -193,7 +193,7 @@ Error FileAccessWindows::open_internal(const String &p_path, int p_mode_flags) {
 		uint64_t id = OS::get_singleton()->get_ticks_usec();
 		while (true) {
 			tmpfile = path + itos(id++) + ".tmp";
-			HANDLE handle = CreateFileW((LPCWSTR)tmpfile.utf16().get_data(), GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, 0);
+			HANDLE handle = CreateFileW((LPCWSTR)tmpfile.utf16().get_data(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
 			if (handle != INVALID_HANDLE_VALUE) {
 				CloseHandle(handle);
 				break;

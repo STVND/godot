@@ -65,7 +65,7 @@
 				[csharp]
 				public override bool _CanDropData(Vector2 atPosition, Variant data)
 				{
-				    return data.VariantType == Variant.Type.Dictionary &amp;&amp; dict.AsGodotDictionary().ContainsKey("color");
+				    return data.VariantType == Variant.Type.Dictionary &amp;&amp; data.AsGodotDictionary().ContainsKey("color");
 				}
 
 				public override void _DropData(Vector2 atPosition, Variant data)
@@ -993,8 +993,9 @@
 			Controls whether the control will be able to receive mouse button input events through [method _gui_input] and how these events should be handled. Also controls whether the control can receive the [signal mouse_entered], and [signal mouse_exited] signals. See the constants to learn what each does.
 		</member>
 		<member name="mouse_force_pass_scroll_events" type="bool" setter="set_force_pass_scroll_events" getter="is_force_pass_scroll_events" default="true">
-			When enabled, scroll wheel events processed by [method _gui_input] will be passed to the parent control even if [member mouse_filter] is set to [constant MOUSE_FILTER_STOP]. As it defaults to true, this allows nested scrollable containers to work out of the box.
+			When enabled, scroll wheel events processed by [method _gui_input] will be passed to the parent control even if [member mouse_filter] is set to [constant MOUSE_FILTER_STOP].
 			You should disable it on the root of your UI if you do not want scroll events to go to the [method Node._unhandled_input] processing.
+			[b]Note:[/b] Because this property defaults to [code]true[/code], this allows nested scrollable containers to work out of the box.
 		</member>
 		<member name="offset_bottom" type="float" setter="set_offset" getter="get_offset" default="0.0">
 			Distance between the node's bottom edge and its parent control, based on [member anchor_bottom].
@@ -1059,7 +1060,7 @@
 		</member>
 		<member name="tooltip_auto_translate_mode" type="int" setter="set_tooltip_auto_translate_mode" getter="get_tooltip_auto_translate_mode" enum="Node.AutoTranslateMode" default="0">
 			Defines if tooltip text should automatically change to its translated version depending on the current locale. Uses the same auto translate mode as this control when set to [constant Node.AUTO_TRANSLATE_MODE_INHERIT].
-			[b]Note:[/b] When the tooltip is customized using [method _make_custom_tooltip], this auto translate mode is applied automatically to the returned control.
+			[b]Note:[/b] Tooltips customized using [method _make_custom_tooltip] do not use this auto translate mode automatically.
 		</member>
 		<member name="tooltip_text" type="String" setter="set_tooltip_text" getter="get_tooltip_text" default="&quot;&quot;">
 			The default tooltip text. The tooltip appears when the user's mouse cursor stays idle over this control for a few moments, provided that the [member mouse_filter] property is not [constant MOUSE_FILTER_IGNORE]. The time required for the tooltip to appear can be changed with the [member ProjectSettings.gui/timers/tooltip_delay_sec] option. See also [method get_tooltip].

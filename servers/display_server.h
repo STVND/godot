@@ -82,6 +82,8 @@ public:
 		WINDOW_HANDLE,
 		WINDOW_VIEW,
 		OPENGL_CONTEXT,
+		EGL_DISPLAY,
+		EGL_CONFIG,
 	};
 
 	enum Context {
@@ -150,6 +152,7 @@ public:
 		FEATURE_NATIVE_HELP,
 		FEATURE_NATIVE_DIALOG_INPUT,
 		FEATURE_NATIVE_DIALOG_FILE,
+		FEATURE_NATIVE_DIALOG_FILE_EXTRA,
 	};
 
 	virtual bool has_feature(Feature p_feature) const = 0;
@@ -367,6 +370,7 @@ public:
 		INVALID_INDICATOR_ID = -1
 	};
 
+public:
 	typedef int WindowID;
 	typedef int IndicatorID;
 

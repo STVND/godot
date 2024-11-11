@@ -317,7 +317,7 @@ bool GraphEdit::is_node_connected(const StringName &p_from, int p_from_port, con
 void GraphEdit::disconnect_node(const StringName &p_from, int p_from_port, const StringName &p_to, int p_to_port) {
 	ERR_FAIL_NULL_MSG(connections_layer, "connections_layer is missing.");
 
-	for (const List<Ref<Connection>>::Element *E = connections.front(); E; E = E->next()) {
+	for (List<Ref<Connection>>::Element *E = connections.front(); E; E = E->next()) {
 		if (E->get()->from_node == p_from && E->get()->from_port == p_from_port && E->get()->to_node == p_to && E->get()->to_port == p_to_port) {
 			connection_map[p_from].erase(E->get());
 			connection_map[p_to].erase(E->get());
@@ -733,14 +733,14 @@ void GraphEdit::_update_theme_item_cache() {
 void GraphEdit::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_THEME_CHANGED: {
-			zoom_minus_button->set_icon(theme_cache.zoom_out);
-			zoom_reset_button->set_icon(theme_cache.zoom_reset);
-			zoom_plus_button->set_icon(theme_cache.zoom_in);
+			zoom_minus_button->set_button_icon(theme_cache.zoom_out);
+			zoom_reset_button->set_button_icon(theme_cache.zoom_reset);
+			zoom_plus_button->set_button_icon(theme_cache.zoom_in);
 
-			toggle_snapping_button->set_icon(theme_cache.snapping_toggle);
-			toggle_grid_button->set_icon(theme_cache.grid_toggle);
-			minimap_button->set_icon(theme_cache.minimap_toggle);
-			arrange_button->set_icon(theme_cache.layout);
+			toggle_snapping_button->set_button_icon(theme_cache.snapping_toggle);
+			toggle_grid_button->set_button_icon(theme_cache.grid_toggle);
+			minimap_button->set_button_icon(theme_cache.minimap_toggle);
+			arrange_button->set_button_icon(theme_cache.layout);
 
 			zoom_label->set_custom_minimum_size(Size2(48, 0) * theme_cache.base_scale);
 

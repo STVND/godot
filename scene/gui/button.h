@@ -100,6 +100,7 @@ private:
 
 		int h_separation = 0;
 		int icon_max_width = 0;
+		int line_spacing = 0;
 	} theme_cache;
 
 	void _shape(Ref<TextParagraph> p_paragraph = Ref<TextParagraph>(), String p_text = "");
@@ -137,8 +138,8 @@ public:
 	void set_language(const String &p_language);
 	String get_language() const;
 
-	void set_icon(const Ref<Texture2D> &p_icon);
-	Ref<Texture2D> get_icon() const;
+	void set_button_icon(const Ref<Texture2D> &p_icon);
+	Ref<Texture2D> get_button_icon() const;
 
 	void set_expand_icon(bool p_enabled);
 	bool is_expand_icon() const;

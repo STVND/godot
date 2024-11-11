@@ -561,6 +561,7 @@ void Button::_shape(Ref<TextParagraph> p_paragraph, String p_text) {
 	}
 	autowrap_flags = autowrap_flags | TextServer::BREAK_TRIM_EDGE_SPACES;
 	p_paragraph->set_break_flags(autowrap_flags);
+	p_paragraph->set_line_spacing(theme_cache.line_spacing);
 
 	if (text_direction == Control::TEXT_DIRECTION_INHERITED) {
 		p_paragraph->set_direction(is_layout_rtl() ? TextServer::DIRECTION_RTL : TextServer::DIRECTION_LTR);
@@ -642,7 +643,7 @@ String Button::get_language() const {
 	return language;
 }
 
-void Button::set_icon(const Ref<Texture2D> &p_icon) {
+void Button::set_button_icon(const Ref<Texture2D> &p_icon) {
 	if (icon == p_icon) {
 		return;
 	}
@@ -666,7 +667,7 @@ void Button::_texture_changed() {
 	update_minimum_size();
 }
 
-Ref<Texture2D> Button::get_icon() const {
+Ref<Texture2D> Button::get_button_icon() const {
 	return icon;
 }
 
@@ -762,8 +763,8 @@ void Button::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_text_direction"), &Button::get_text_direction);
 	ClassDB::bind_method(D_METHOD("set_language", "language"), &Button::set_language);
 	ClassDB::bind_method(D_METHOD("get_language"), &Button::get_language);
-	ClassDB::bind_method(D_METHOD("set_button_icon", "texture"), &Button::set_icon);
-	ClassDB::bind_method(D_METHOD("get_button_icon"), &Button::get_icon);
+	ClassDB::bind_method(D_METHOD("set_button_icon", "texture"), &Button::set_button_icon);
+	ClassDB::bind_method(D_METHOD("get_button_icon"), &Button::get_button_icon);
 	ClassDB::bind_method(D_METHOD("set_flat", "enabled"), &Button::set_flat);
 	ClassDB::bind_method(D_METHOD("is_flat"), &Button::is_flat);
 	ClassDB::bind_method(D_METHOD("set_clip_text", "enabled"), &Button::set_clip_text);
@@ -833,6 +834,7 @@ void Button::_bind_methods() {
 	BIND_THEME_ITEM(Theme::DATA_TYPE_CONSTANT, Button, icon_max_width);
 
 	BIND_THEME_ITEM(Theme::DATA_TYPE_CONSTANT, Button, align_to_largest_stylebox);
+	BIND_THEME_ITEM(Theme::DATA_TYPE_CONSTANT, Button, line_spacing);
 }
 
 Button::Button(const String &p_text) {
