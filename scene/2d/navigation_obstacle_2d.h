@@ -44,6 +44,8 @@ class NavigationObstacle2D : public Node2D {
 	real_t radius = 0.0;
 
 	Vector<Vector2> vertices;
+	bool vertices_are_clockwise = true;
+	bool vertices_are_valid = true;
 
 	bool avoidance_enabled = true;
 	uint32_t avoidance_layers = 1;
@@ -60,6 +62,8 @@ class NavigationObstacle2D : public Node2D {
 #ifdef DEBUG_ENABLED
 private:
 	RID debug_canvas_item;
+	RID debug_mesh_rid;
+
 	void _update_fake_agent_radius_debug();
 	void _update_static_obstacle_debug();
 #endif // DEBUG_ENABLED
@@ -86,6 +90,9 @@ public:
 	void set_vertices(const Vector<Vector2> &p_vertices);
 	const Vector<Vector2> &get_vertices() const { return vertices; }
 
+	bool are_vertices_clockwise() const { return vertices_are_clockwise; }
+	bool are_vertices_valid() const { return vertices_are_valid; }
+
 	void set_avoidance_layers(uint32_t p_layers);
 	uint32_t get_avoidance_layers() const;
 
@@ -106,9 +113,12 @@ public:
 	void set_carve_navigation_mesh(bool p_enabled);
 	bool get_carve_navigation_mesh() const;
 
+	PackedStringArray get_configuration_warnings() const override;
+
 private:
 	void _update_map(RID p_map);
 	void _update_position(const Vector2 p_position);
+	void _update_transform();
 };
 
 #endif // NAVIGATION_OBSTACLE_2D_H

@@ -30,8 +30,6 @@
 
 #include "option_button.h"
 
-#include "core/os/keyboard.h"
-#include "core/string/print_string.h"
 #include "scene/theme/theme_db.h"
 
 static const int NONE_SELECTED = -1;
@@ -178,7 +176,7 @@ bool OptionButton::_set(const StringName &p_name, const Variant &p_value) {
 }
 
 void OptionButton::_focused(int p_which) {
-	emit_signal(SNAME("item_focused"), p_which);
+	emit_signal(SNAME("item_focused"), popup->get_item_index(p_which));
 }
 
 void OptionButton::_selected(int p_which) {

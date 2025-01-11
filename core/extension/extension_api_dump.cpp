@@ -32,7 +32,7 @@
 
 #include "core/config/engine.h"
 #include "core/core_constants.h"
-#include "core/extension/gdextension_compat_hashes.h"
+#include "core/extension/gdextension_special_compat_hashes.h"
 #include "core/io/file_access.h"
 #include "core/io/json.h"
 #include "core/templates/pair.h"
@@ -1094,7 +1094,7 @@ Dictionary GDExtensionAPIDump::generate_extension_api(bool p_include_docs) {
 						}
 
 #ifndef DISABLE_DEPRECATED
-						GDExtensionCompatHashes::get_legacy_hashes(class_name, method_name, compatibility);
+						GDExtensionSpecialCompatHashes::get_legacy_hashes(class_name, method_name, compatibility);
 #endif
 
 						if (compatibility.size() > 0) {
@@ -1205,7 +1205,7 @@ Dictionary GDExtensionAPIDump::generate_extension_api(bool p_include_docs) {
 					if (F.name.begins_with("_")) {
 						continue; //hidden property
 					}
-					if (F.name.contains("/")) {
+					if (F.name.contains_char('/')) {
 						// Ignore properties with '/' (slash) in the name. These are only meant for use in the inspector.
 						continue;
 					}

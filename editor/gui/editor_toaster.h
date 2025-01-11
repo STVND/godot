@@ -75,6 +75,7 @@ private:
 		bool popped = false;
 
 		// Buttons
+		Button *copy_button = nullptr;
 		Button *close_button = nullptr;
 
 		// Messages
@@ -105,6 +106,7 @@ private:
 	void _toast_theme_changed(Control *p_control);
 
 protected:
+	static void _bind_methods();
 	static EditorToaster *singleton;
 
 	void _notification(int p_what);
@@ -115,6 +117,8 @@ public:
 	Control *popup(Control *p_control, Severity p_severity = SEVERITY_INFO, double p_time = 0.0, const String &p_tooltip = String());
 	void popup_str(const String &p_message, Severity p_severity = SEVERITY_INFO, const String &p_tooltip = String());
 	void close(Control *p_control);
+	void instant_close(Control *p_control);
+	void copy(Control *p_control);
 
 	EditorToaster();
 	~EditorToaster();

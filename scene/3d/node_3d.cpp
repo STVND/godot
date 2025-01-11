@@ -841,10 +841,10 @@ void Node3D::reparent(Node *p_parent, bool p_keep_global_transform) {
 	ERR_THREAD_GUARD;
 	if (p_keep_global_transform) {
 		Transform3D temp = get_global_transform();
-		Node::reparent(p_parent);
+		Node::reparent(p_parent, p_keep_global_transform);
 		set_global_transform(temp);
 	} else {
-		Node::reparent(p_parent);
+		Node::reparent(p_parent, p_keep_global_transform);
 	}
 }
 
@@ -1066,7 +1066,6 @@ void Node3D::look_at_from_position(const Vector3 &p_pos, const Vector3 &p_target
 	ERR_THREAD_GUARD;
 	ERR_FAIL_COND_MSG(p_pos.is_equal_approx(p_target), "Node origin and target are in the same position, look_at() failed.");
 	ERR_FAIL_COND_MSG(p_up.is_zero_approx(), "The up vector can't be zero, look_at() failed.");
-	ERR_FAIL_COND_MSG(p_up.cross(p_target - p_pos).is_zero_approx(), "Up vector and direction between node origin and target are aligned, look_at() failed.");
 
 	Vector3 forward = p_target - p_pos;
 	Basis lookat_basis = Basis::looking_at(forward, p_up, p_use_model_front);

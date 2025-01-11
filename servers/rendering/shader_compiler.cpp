@@ -30,8 +30,6 @@
 
 #include "shader_compiler.h"
 
-#include "core/config/project_settings.h"
-#include "core/os/os.h"
 #include "servers/rendering/rendering_server_globals.h"
 #include "servers/rendering/shader_types.h"
 
@@ -181,7 +179,7 @@ static String _mkid(const String &p_id) {
 
 static String f2sp0(float p_float) {
 	String num = rtos(p_float);
-	if (!num.contains(".") && !num.contains("e")) {
+	if (!num.contains_char('.') && !num.contains_char('e')) {
 		num += ".0";
 	}
 	return num;
@@ -489,7 +487,7 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 						struct_code += _typestr(m->datatype);
 					}
 					struct_code += " ";
-					struct_code += m->name;
+					struct_code += _mkid(m->name);
 					if (m->array_size > 0) {
 						struct_code += "[";
 						struct_code += itos(m->array_size);
@@ -674,7 +672,7 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 				const StringName &varying_name = varying_names[k];
 				const SL::ShaderNode::Varying &varying = pnode->varyings[varying_name];
 
-				if (varying.stage == SL::ShaderNode::Varying::STAGE_FRAGMENT_TO_LIGHT || varying.stage == SL::ShaderNode::Varying::STAGE_FRAGMENT) {
+				if (varying.stage == SL::ShaderNode::Varying::STAGE_FRAGMENT) {
 					var_frag_to_light.push_back(Pair<StringName, SL::ShaderNode::Varying>(varying_name, varying));
 					fragment_varyings.insert(varying_name);
 					continue;
@@ -1448,7 +1446,13 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 		} break;
 		case SL::Node::NODE_TYPE_MEMBER: {
 			SL::MemberNode *mnode = (SL::MemberNode *)p_node;
-			code = _dump_node_code(mnode->owner, p_level, r_gen_code, p_actions, p_default_actions, p_assigning) + "." + mnode->name;
+			String name;
+			if (mnode->basetype == SL::TYPE_STRUCT) {
+				name = _mkid(mnode->name);
+			} else {
+				name = mnode->name;
+			}
+			code = _dump_node_code(mnode->owner, p_level, r_gen_code, p_actions, p_default_actions, p_assigning) + "." + name;
 			if (mnode->index_expression != nullptr) {
 				code += "[";
 				code += _dump_node_code(mnode->index_expression, p_level, r_gen_code, p_actions, p_default_actions, p_assigning);

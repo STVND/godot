@@ -371,13 +371,19 @@ Control *EditorToaster::popup(Control *p_control, Severity p_severity, double p_
 	p_control->set_h_size_flags(SIZE_EXPAND_FILL);
 	hbox_container->add_child(p_control);
 
-	// Close button.
+	// Add buttons.
 	if (p_time > 0.0) {
+		Button *copy_button = memnew(Button);
+		copy_button->set_flat(true);
+		copy_button->connect(SceneStringName(pressed), callable_mp(this, &EditorToaster::copy).bind(panel));
+		hbox_container->add_child(copy_button);
+
 		Button *close_button = memnew(Button);
 		close_button->set_flat(true);
-		close_button->connect(SceneStringName(pressed), callable_mp(this, &EditorToaster::close).bind(panel));
+		close_button->connect(SceneStringName(pressed), callable_mp(this, &EditorToaster::instant_close).bind(panel));
 		hbox_container->add_child(close_button);
 
+		toast.copy_button = copy_button;
 		toast.close_button = close_button;
 	}
 
@@ -493,12 +499,33 @@ void EditorToaster::_toast_theme_changed(Control *p_control) {
 	if (toast.close_button) {
 		toast.close_button->set_button_icon(get_editor_theme_icon(SNAME("Close")));
 	}
+	if (toast.copy_button) {
+		toast.copy_button->set_button_icon(get_editor_theme_icon(SNAME("ActionCopy")));
+	}
 }
 
 void EditorToaster::close(Control *p_control) {
 	ERR_FAIL_COND(!toasts.has(p_control));
 	toasts[p_control].remaining_time = -1.0;
 	toasts[p_control].popped = false;
+}
+
+void EditorToaster::instant_close(Control *p_control) {
+	close(p_control);
+	p_control->set_modulate(Color(1, 1, 1, 0));
+}
+
+void EditorToaster::copy(Control *p_control) {
+	ERR_FAIL_COND(!toasts.has(p_control));
+	DisplayServer::get_singleton()->clipboard_set(toasts[p_control].message);
+}
+
+void EditorToaster::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("push_toast", "message", "severity", "tooltip"), &EditorToaster::_popup_str, DEFVAL(EditorToaster::SEVERITY_INFO), DEFVAL(String()));
+
+	BIND_ENUM_CONSTANT(SEVERITY_INFO);
+	BIND_ENUM_CONSTANT(SEVERITY_WARNING);
+	BIND_ENUM_CONSTANT(SEVERITY_ERROR);
 }
 
 EditorToaster *EditorToaster::get_singleton() {

@@ -74,6 +74,7 @@ public:
 
 	virtual void mesh_set_shadow_mesh(RID p_mesh, RID p_shadow_mesh) = 0;
 
+	virtual void mesh_surface_remove(RID p_mesh, int p_surface) = 0;
 	virtual void mesh_clear(RID p_mesh) = 0;
 
 	virtual bool mesh_needs_instance(RID p_mesh, bool p_has_skeleton) = 0;
@@ -141,6 +142,7 @@ public:
 	virtual Color multimesh_instance_get_custom_data(RID p_multimesh, int p_index) const;
 
 	virtual void multimesh_set_buffer(RID p_multimesh, const Vector<float> &p_buffer);
+	virtual RID multimesh_get_buffer_rd_rid(RID p_multimesh) const;
 	virtual Vector<float> multimesh_get_buffer(RID p_multimesh) const;
 
 	virtual void multimesh_set_buffer_interpolated(RID p_multimesh, const Vector<float> &p_buffer, const Vector<float> &p_buffer_prev);
@@ -178,6 +180,7 @@ public:
 	virtual Color _multimesh_instance_get_custom_data(RID p_multimesh, int p_index) const = 0;
 
 	virtual void _multimesh_set_buffer(RID p_multimesh, const Vector<float> &p_buffer) = 0;
+	virtual RID _multimesh_get_buffer_rd_rid(RID p_multimesh) const = 0;
 	virtual Vector<float> _multimesh_get_buffer(RID p_multimesh) const = 0;
 
 	virtual void _multimesh_set_visible_instances(RID p_multimesh, int p_visible) = 0;

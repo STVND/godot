@@ -155,7 +155,7 @@ void process() {
 			uniforms.push_back(u);
 		}
 
-		uniforms.append_array(material_storage->samplers_rd_get_default().get_uniforms(SAMPLERS_BINDING_FIRST_INDEX));
+		material_storage->samplers_rd_get_default().append_uniforms(uniforms, SAMPLERS_BINDING_FIRST_INDEX);
 
 		particles_shader.base_uniform_set = RD::get_singleton()->uniform_set_create(uniforms, particles_shader.default_shader_rd, BASE_UNIFORM_SET);
 	}
@@ -541,13 +541,15 @@ void ParticlesStorage::_particles_allocate_emission_buffer(Particles *particles)
 
 void ParticlesStorage::_particles_ensure_unused_emission_buffer(Particles *particles) {
 	if (particles->unused_emission_storage_buffer.is_null()) {
-		particles->unused_emission_storage_buffer = RD::get_singleton()->storage_buffer_create(sizeof(uint32_t) * 4);
+		// For rendering devices that do not support empty arrays (like C++),
+		// we need to size the buffer with at least 1 element.
+		particles->unused_emission_storage_buffer = RD::get_singleton()->storage_buffer_create(sizeof(ParticleEmissionBuffer));
 	}
 }
 
 void ParticlesStorage::_particles_ensure_unused_trail_buffer(Particles *particles) {
 	if (particles->unused_trail_storage_buffer.is_null()) {
-		particles->unused_trail_storage_buffer = RD::get_singleton()->storage_buffer_create(sizeof(uint32_t) * 4);
+		particles->unused_trail_storage_buffer = RD::get_singleton()->storage_buffer_create(16 * sizeof(float)); // Size of mat4.
 	}
 }
 
