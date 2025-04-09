@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef TEXTURE_EDITOR_PLUGIN_H
-#define TEXTURE_EDITOR_PLUGIN_H
+#pragma once
 
 #include "editor/editor_inspector.h"
 #include "editor/plugins/editor_plugin.h"
@@ -39,6 +38,8 @@
 class AspectRatioContainer;
 class ColorRect;
 class TextureRect;
+class ShaderMaterial;
+class ColorChannelSelector;
 
 class TexturePreview : public MarginContainer {
 	GDCLASS(TexturePreview, MarginContainer);
@@ -47,10 +48,14 @@ private:
 	TextureRect *texture_display = nullptr;
 
 	MarginContainer *margin_container = nullptr;
+	Control *outline_overlay = nullptr;
 	AspectRatioContainer *centering_container = nullptr;
 	ColorRect *bg_rect = nullptr;
 	TextureRect *checkerboard = nullptr;
 	Label *metadata_label = nullptr;
+	Ref<ShaderMaterial> material;
+
+	ColorChannelSelector *channel_selector = nullptr;
 
 	Color cached_outline_color;
 
@@ -60,6 +65,8 @@ private:
 protected:
 	void _notification(int p_what);
 	void _update_texture_display_ratio();
+
+	void on_selected_channels_changed();
 
 public:
 	TextureRect *get_texture_display();
@@ -82,5 +89,3 @@ public:
 
 	TextureEditorPlugin();
 };
-
-#endif // TEXTURE_EDITOR_PLUGIN_H

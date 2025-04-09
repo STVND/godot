@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef NAVIGATION_SERVER_2D_DUMMY_H
-#define NAVIGATION_SERVER_2D_DUMMY_H
+#pragma once
 
 #include "servers/navigation_server_2d.h"
 
@@ -87,6 +86,7 @@ public:
 	Vector2 region_get_connection_pathway_end(RID p_region, int p_connection_id) const override { return Vector2(); }
 	Vector2 region_get_closest_point(RID p_region, const Vector2 &p_point) const override { return Vector2(); }
 	Vector2 region_get_random_point(RID p_region, uint32_t p_navigation_layers, bool p_uniformly) const override { return Vector2(); }
+	Rect2 region_get_bounds(RID p_region) const override { return Rect2(); }
 
 	RID link_create() override { return RID(); }
 	void link_set_map(RID p_link, RID p_map) override {}
@@ -162,9 +162,14 @@ public:
 
 	void query_path(const Ref<NavigationPathQueryParameters2D> &p_query_parameters, Ref<NavigationPathQueryResult2D> p_query_result, const Callable &p_callback = Callable()) override {}
 
+	void set_active(bool p_active) override {}
+	void process(double p_delta_time) override {}
+	void physics_process(double p_delta_time) override {}
 	void init() override {}
 	void sync() override {}
 	void finish() override {}
+
+	int get_process_info(ProcessInfo p_info) const override { return 0; }
 
 	void free(RID p_object) override {}
 
@@ -181,5 +186,3 @@ public:
 	void set_debug_enabled(bool p_enabled) {}
 	bool get_debug_enabled() const { return false; }
 };
-
-#endif // NAVIGATION_SERVER_2D_DUMMY_H

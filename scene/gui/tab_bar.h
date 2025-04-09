@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef TAB_BAR_H
-#define TAB_BAR_H
+#pragma once
 
 #include "scene/gui/control.h"
 #include "scene/property_list_helper.h"
@@ -55,6 +54,9 @@ public:
 
 private:
 	struct Tab {
+		mutable RID accessibility_item_element;
+		mutable bool accessibility_item_dirty = true;
+
 		String text;
 		String tooltip;
 
@@ -127,6 +129,7 @@ private:
 
 	struct ThemeCache {
 		int h_separation = 0;
+		int tab_separation = 0;
 		int icon_max_width = 0;
 
 		Ref<StyleBox> tab_unselected_style;
@@ -170,6 +173,9 @@ private:
 	void _shape(int p_tab);
 	void _draw_tab(Ref<StyleBox> &p_tab_style, Color &p_font_color, int p_index, float p_x, bool p_focus);
 
+	void _accessibility_action_scroll_into_view(const Variant &p_data, int p_index);
+	void _accessibility_action_focus(const Variant &p_data, int p_index);
+
 protected:
 	virtual void gui_input(const Ref<InputEvent> &p_event) override;
 	virtual String get_tooltip(const Point2 &p_pos) const override;
@@ -188,6 +194,9 @@ protected:
 	void _move_tab_from(TabBar *p_from_tabbar, int p_from_index, int p_to_index);
 
 public:
+	RID get_tab_accessibility_element(int p_tab) const;
+	virtual RID get_focused_accessibility_element() const override;
+
 	Variant _handle_get_drag_data(const String &p_type, const Point2 &p_point);
 	bool _handle_can_drop_data(const String &p_type, const Point2 &p_point, const Variant &p_data) const;
 	void _handle_drop_data(const String &p_type, const Point2 &p_point, const Variant &p_data, const Callable &p_move_tab_callback, const Callable &p_move_tab_from_other_callback);
@@ -225,6 +234,7 @@ public:
 	Ref<Texture2D> get_tab_button_icon(int p_tab) const;
 
 	int get_tab_idx_at_point(const Point2 &p_point) const;
+	int get_closest_tab_idx_to_point(const Point2 &p_point) const;
 
 	void set_tab_alignment(AlignmentMode p_alignment);
 	AlignmentMode get_tab_alignment() const;
@@ -288,5 +298,3 @@ public:
 
 VARIANT_ENUM_CAST(TabBar::AlignmentMode);
 VARIANT_ENUM_CAST(TabBar::CloseButtonDisplayPolicy);
-
-#endif // TAB_BAR_H

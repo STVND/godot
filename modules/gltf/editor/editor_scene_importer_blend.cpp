@@ -30,8 +30,6 @@
 
 #include "editor_scene_importer_blend.h"
 
-#ifdef TOOLS_ENABLED
-
 #include "../gltf_defines.h"
 #include "../gltf_document.h"
 #include "editor_import_blend_runner.h"
@@ -100,10 +98,6 @@ static bool _get_blender_version(const String &p_path, int &r_major, int &r_mino
 	r_minor = pp2 > pp ? pipe.substr(pp + 1, pp2 - pp - 1).to_int() : 0;
 
 	return true;
-}
-
-uint32_t EditorSceneFormatImporterBlend::get_import_flags() const {
-	return ImportFlags::IMPORT_SCENE | ImportFlags::IMPORT_ANIMATION;
 }
 
 void EditorSceneFormatImporterBlend::get_extensions(List<String> *r_extensions) const {
@@ -521,6 +515,7 @@ bool EditorFileSystemImportFormatSupportQueryBlend::query() {
 
 		blender_path = memnew(LineEdit);
 		blender_path->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+		blender_path->set_accessibility_name(TTRC("Path"));
 		hb->add_child(blender_path);
 
 		blender_path_browse = memnew(Button);
@@ -599,8 +594,3 @@ bool EditorFileSystemImportFormatSupportQueryBlend::query() {
 
 	return false;
 }
-
-EditorFileSystemImportFormatSupportQueryBlend::EditorFileSystemImportFormatSupportQueryBlend() {
-}
-
-#endif // TOOLS_ENABLED

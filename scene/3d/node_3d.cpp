@@ -131,6 +131,13 @@ void Node3D::_propagate_transform_changed(Node3D *p_origin) {
 
 void Node3D::_notification(int p_what) {
 	switch (p_what) {
+		case NOTIFICATION_ACCESSIBILITY_UPDATE: {
+			RID ae = get_accessibility_element();
+			ERR_FAIL_COND(ae.is_null());
+
+			DisplayServer::get_singleton()->accessibility_update_set_role(ae, DisplayServer::AccessibilityRole::ROLE_CONTAINER);
+		} break;
+
 		case NOTIFICATION_ENTER_TREE: {
 			ERR_MAIN_THREAD_GUARD;
 			ERR_FAIL_NULL(get_tree());
@@ -1337,7 +1344,7 @@ void Node3D::_bind_methods() {
 	ADD_GROUP("Transform", "");
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM3D, "transform", PROPERTY_HINT_NONE, "suffix:m", PROPERTY_USAGE_NO_EDITOR), "set_transform", "get_transform");
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM3D, "global_transform", PROPERTY_HINT_NONE, "suffix:m", PROPERTY_USAGE_NONE), "set_global_transform", "get_global_transform");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "position", PROPERTY_HINT_RANGE, "-99999,99999,0.001,or_greater,or_less,hide_slider,suffix:m", PROPERTY_USAGE_EDITOR), "set_position", "get_position");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "position", PROPERTY_HINT_RANGE, "-99999,99999,or_greater,or_less,hide_slider,suffix:m", PROPERTY_USAGE_EDITOR), "set_position", "get_position");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rotation", PROPERTY_HINT_RANGE, "-360,360,0.1,or_less,or_greater,radians_as_degrees", PROPERTY_USAGE_EDITOR), "set_rotation", "get_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rotation_degrees", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NONE), "set_rotation_degrees", "get_rotation_degrees");
 	ADD_PROPERTY(PropertyInfo(Variant::QUATERNION, "quaternion", PROPERTY_HINT_HIDE_QUATERNION_EDIT, "", PROPERTY_USAGE_EDITOR), "set_quaternion", "get_quaternion");

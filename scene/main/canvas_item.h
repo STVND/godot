@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef CANVAS_ITEM_H
-#define CANVAS_ITEM_H
+#pragma once
 
 #include "scene/main/node.h"
 #include "scene/resources/font.h"
@@ -169,6 +168,8 @@ protected:
 	}
 
 	void item_rect_changed(bool p_size_changed = true);
+
+	void set_canvas_item_use_identity_transform(bool p_enable);
 
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -339,6 +340,7 @@ public:
 	virtual Transform2D get_transform() const = 0;
 
 	virtual Transform2D get_global_transform() const;
+	virtual Transform2D get_global_transform_const() const;
 	virtual Transform2D get_global_transform_with_canvas() const;
 	virtual Transform2D get_screen_transform() const;
 
@@ -395,6 +397,8 @@ public:
 
 	int get_canvas_layer() const;
 	CanvasLayer *get_canvas_layer_node() const;
+
+	virtual PackedStringArray get_configuration_warnings() const override;
 
 	CanvasItem();
 	~CanvasItem();
@@ -457,5 +461,3 @@ public:
 	CanvasTexture();
 	~CanvasTexture();
 };
-
-#endif // CANVAS_ITEM_H

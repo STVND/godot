@@ -30,12 +30,15 @@
 
 #include "popup.h"
 
+#ifdef TOOLS_ENABLED
+#include "core/config/project_settings.h"
+#endif
 #include "scene/gui/panel.h"
 #include "scene/resources/style_box_flat.h"
 #include "scene/theme/theme_db.h"
 
 void Popup::_input_from_window(const Ref<InputEvent> &p_event) {
-	if (get_flag(FLAG_POPUP) && p_event->is_action_pressed(SNAME("ui_cancel"), false, true)) {
+	if ((ac_popup || get_flag(FLAG_POPUP)) && p_event->is_action_pressed(SNAME("ui_cancel"), false, true)) {
 		hide_reason = HIDE_REASON_CANCELED; // ESC pressed, mark as canceled unconditionally.
 		_close_pressed();
 	}
@@ -112,7 +115,7 @@ void Popup::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_APPLICATION_FOCUS_OUT: {
-			if (!is_in_edited_scene_root() && get_flag(FLAG_POPUP)) {
+			if (!is_in_edited_scene_root() && (get_flag(FLAG_POPUP) || ac_popup)) {
 				if (hide_reason == HIDE_REASON_NONE) {
 					hide_reason = HIDE_REASON_UNFOCUSED;
 				}
@@ -123,7 +126,7 @@ void Popup::_notification(int p_what) {
 }
 
 void Popup::_parent_focused() {
-	if (popped_up && get_flag(FLAG_POPUP)) {
+	if (popped_up && (get_flag(FLAG_POPUP) || ac_popup)) {
 		if (hide_reason == HIDE_REASON_NONE) {
 			hide_reason = HIDE_REASON_UNFOCUSED;
 		}
@@ -163,6 +166,11 @@ Rect2i Popup::_popup_adjust_rect() const {
 	}
 
 	Rect2i current(get_position(), get_size());
+
+	if (DisplayServer::get_singleton()->has_feature(DisplayServer::FEATURE_SELF_FITTING_WINDOWS)) {
+		// We're fine as is, the Display Server will take care of that for us.
+		return current;
+	}
 
 	if (current.position.x + current.size.x > parent_rect.position.x + parent_rect.size.x) {
 		current.position.x = parent_rect.position.x + parent_rect.size.x - current.size.x;
@@ -215,11 +223,29 @@ Popup::Popup() {
 	set_transient(true);
 	set_flag(FLAG_BORDERLESS, true);
 	set_flag(FLAG_RESIZE_DISABLED, true);
+	set_flag(FLAG_MINIMIZE_DISABLED, true);
+	set_flag(FLAG_MAXIMIZE_DISABLED, true);
 	set_flag(FLAG_POPUP, true);
+	set_flag(FLAG_POPUP_WM_HINT, true);
 }
 
 Popup::~Popup() {
 }
+
+#ifdef TOOLS_ENABLED
+PackedStringArray PopupPanel::get_configuration_warnings() const {
+	PackedStringArray warnings = Popup::get_configuration_warnings();
+
+	if (!DisplayServer::get_singleton()->is_window_transparency_available() && !GLOBAL_GET("display/window/subwindows/embed_subwindows")) {
+		Ref<StyleBoxFlat> sb = theme_cache.panel_style;
+		if (sb.is_valid() && (sb->get_shadow_size() > 0 || sb->get_corner_radius(CORNER_TOP_LEFT) > 0 || sb->get_corner_radius(CORNER_TOP_RIGHT) > 0 || sb->get_corner_radius(CORNER_BOTTOM_LEFT) > 0 || sb->get_corner_radius(CORNER_BOTTOM_RIGHT) > 0)) {
+			warnings.push_back(RTR("The current theme style has shadows and/or rounded corners for popups, but those won't display correctly if \"display/window/per_pixel_transparency/allowed\" isn't enabled in the Project Settings, nor if it isn't supported."));
+		}
+	}
+
+	return warnings;
+}
+#endif
 
 void PopupPanel::_input_from_window(const Ref<InputEvent> &p_event) {
 	if (p_event.is_valid()) {
@@ -229,8 +255,14 @@ void PopupPanel::_input_from_window(const Ref<InputEvent> &p_event) {
 
 		Ref<InputEventMouseButton> b = p_event;
 		// Hide it if the shadows have been clicked.
-		if (b.is_valid() && b->is_pressed() && b->get_button_index() == MouseButton::LEFT && !panel->get_global_rect().has_point(b->get_position())) {
-			_close_pressed();
+		if (b.is_valid() && b->is_pressed() && b->get_button_index() == MouseButton::LEFT) {
+			Rect2 panel_area = panel->get_global_rect();
+			float win_scale = get_content_scale_factor();
+			panel_area.position *= win_scale;
+			panel_area.size *= win_scale;
+			if (!panel_area.has_point(b->get_position())) {
+				_close_pressed();
+			}
 		}
 	} else {
 		WARN_PRINT_ONCE("PopupPanel has received an invalid InputEvent. Consider filtering out invalid events.");
@@ -275,7 +307,7 @@ Rect2i PopupPanel::_popup_adjust_rect() const {
 	_update_child_rects();
 
 	if (is_layout_rtl()) {
-		current.position -= Vector2(ABS(panel->get_offset(SIDE_RIGHT)), panel->get_offset(SIDE_TOP)) * get_content_scale_factor();
+		current.position -= Vector2(Math::abs(panel->get_offset(SIDE_RIGHT)), panel->get_offset(SIDE_TOP)) * get_content_scale_factor();
 	} else {
 		current.position -= Vector2(panel->get_offset(SIDE_LEFT), panel->get_offset(SIDE_TOP)) * get_content_scale_factor();
 	}
@@ -341,15 +373,6 @@ void PopupPanel::_update_child_rects() const {
 
 void PopupPanel::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_ENTER_TREE: {
-			if (!Engine::get_singleton()->is_editor_hint() && !DisplayServer::get_singleton()->is_window_transparency_available() && !is_embedded()) {
-				Ref<StyleBoxFlat> sb = theme_cache.panel_style;
-				if (sb.is_valid() && (sb->get_shadow_size() > 0 || sb->get_corner_radius(CORNER_TOP_LEFT) > 0 || sb->get_corner_radius(CORNER_TOP_RIGHT) > 0 || sb->get_corner_radius(CORNER_BOTTOM_LEFT) > 0 || sb->get_corner_radius(CORNER_BOTTOM_RIGHT) > 0)) {
-					WARN_PRINT_ONCE("The current theme styles PopupPanel to have shadows and/or rounded corners, but those won't display correctly if 'display/window/per_pixel_transparency/allowed' isn't enabled in the Project Settings, nor if it isn't supported.");
-				}
-			}
-		} break;
-
 		case NOTIFICATION_THEME_CHANGED: {
 			panel->add_theme_style_override(SceneStringName(panel), theme_cache.panel_style);
 
@@ -358,6 +381,10 @@ void PopupPanel::_notification(int p_what) {
 			}
 
 			_update_child_rects();
+
+#ifdef TOOLS_ENABLED
+			update_configuration_warnings();
+#endif
 		} break;
 
 		case Control::NOTIFICATION_LAYOUT_DIRECTION_CHANGED: {
@@ -410,4 +437,8 @@ PopupPanel::PopupPanel() {
 	panel = memnew(Panel);
 	panel->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
 	add_child(panel, false, INTERNAL_MODE_FRONT);
+
+#ifdef TOOLS_ENABLED
+	ProjectSettings::get_singleton()->connect("settings_changed", callable_mp((Node *)this, &Node::update_configuration_warnings));
+#endif
 }

@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef SCROLL_CONTAINER_H
-#define SCROLL_CONTAINER_H
+#pragma once
 
 #include "container.h"
 
@@ -63,12 +62,15 @@ private:
 	bool drag_touching = false;
 	bool drag_touching_deaccel = false;
 	bool beyond_deadzone = false;
+	bool scroll_on_drag_hover = false;
 
 	ScrollMode horizontal_scroll_mode = SCROLL_MODE_AUTO;
 	ScrollMode vertical_scroll_mode = SCROLL_MODE_AUTO;
 
 	int deadzone = 0;
 	bool follow_focus = false;
+	int scroll_border = 20;
+	int scroll_speed = 12;
 
 	struct ThemeCache {
 		Ref<StyleBox> panel_style;
@@ -97,6 +99,12 @@ protected:
 	void _update_scrollbar_position();
 	void _scroll_moved(float);
 
+	void _accessibility_action_scroll_set(const Variant &p_data);
+	void _accessibility_action_scroll_up(const Variant &p_data);
+	void _accessibility_action_scroll_down(const Variant &p_data);
+	void _accessibility_action_scroll_left(const Variant &p_data);
+	void _accessibility_action_scroll_right(const Variant &p_data);
+
 public:
 	virtual void gui_input(const Ref<InputEvent> &p_gui_input) override;
 
@@ -124,6 +132,8 @@ public:
 	bool is_following_focus() const;
 	void set_follow_focus(bool p_follow);
 
+	void set_scroll_on_drag_hover(bool p_scroll);
+
 	HScrollBar *get_h_scroll_bar();
 	VScrollBar *get_v_scroll_bar();
 	void ensure_control_visible(Control *p_control);
@@ -137,5 +147,3 @@ public:
 };
 
 VARIANT_ENUM_CAST(ScrollContainer::ScrollMode);
-
-#endif // SCROLL_CONTAINER_H

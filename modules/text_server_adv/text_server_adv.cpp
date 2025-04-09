@@ -60,23 +60,17 @@ using namespace godot;
 // Built-in ICU data.
 
 #ifdef ICU_STATIC_DATA
-#include "icudata.gen.h"
+#include <icudata.gen.h>
 #endif
 
 // Thirdparty headers.
 
 #ifdef MODULE_MSDFGEN_ENABLED
-#ifdef _MSC_VER
-#pragma warning(disable : 4458)
-#endif
 #include <core/EdgeHolder.h>
 #include <core/ShapeDistanceFinder.h>
 #include <core/contour-combiners.h>
 #include <core/edge-selectors.h>
 #include <msdfgen.h>
-#ifdef _MSC_VER
-#pragma warning(default : 4458)
-#endif
 #endif
 
 #ifdef MODULE_SVG_ENABLED
@@ -458,13 +452,13 @@ bool TextServerAdvanced::_load_support_data(const String &p_filename) {
 			}
 
 			err = U_ZERO_ERROR;
+			icu_data_loaded = true;
 		}
 
 		u_init(&err);
 		if (U_FAILURE(err)) {
 			ERR_FAIL_V_MSG(false, u_errorName(err));
 		}
-		icu_data_loaded = true;
 	}
 #endif
 	return true;
@@ -1318,11 +1312,12 @@ _FORCE_INLINE_ bool TextServerAdvanced::_ensure_glyph(FontAdvanced *p_font_data,
 			} break;
 		}
 
+		FT_GlyphSlot slot = fd->face->glyph;
+		bool from_svg = (slot->format == FT_GLYPH_FORMAT_SVG); // Need to check before FT_Render_Glyph as it will change format to bitmap.
 		if (!outline) {
 			if (!p_font_data->msdf) {
-				error = FT_Render_Glyph(fd->face->glyph, aa_mode);
+				error = FT_Render_Glyph(slot, aa_mode);
 			}
-			FT_GlyphSlot slot = fd->face->glyph;
 			if (!error) {
 				if (p_font_data->msdf) {
 #ifdef MODULE_MSDFGEN_ENABLED
@@ -1363,6 +1358,7 @@ _FORCE_INLINE_ bool TextServerAdvanced::_ensure_glyph(FontAdvanced *p_font_data,
 		cleanup_stroker:
 			FT_Stroker_Done(stroker);
 		}
+		gl.from_svg = from_svg;
 		E = fd->glyph_map.insert(p_glyph, gl);
 		r_glyph = E->value;
 		return gl.found;
@@ -1417,25 +1413,17 @@ _FORCE_INLINE_ bool TextServerAdvanced::_ensure_cache_for_size(FontAdvanced *p_f
 			fargs.flags = FT_OPEN_MEMORY;
 			fargs.stream = &fd->stream;
 
-			int max_index = 0;
-			FT_Face tmp_face = nullptr;
-			error = FT_Open_Face(ft_library, &fargs, -1, &tmp_face);
-			if (tmp_face && error == 0) {
-				max_index = tmp_face->num_faces - 1;
-			}
-			if (tmp_face) {
-				FT_Done_Face(tmp_face);
-			}
-
-			error = FT_Open_Face(ft_library, &fargs, CLAMP(p_font_data->face_index, 0, max_index), &fd->face);
+			error = FT_Open_Face(ft_library, &fargs, p_font_data->face_index, &fd->face);
 			if (error) {
-				FT_Done_Face(fd->face);
-				fd->face = nullptr;
+				if (fd->face) {
+					FT_Done_Face(fd->face);
+					fd->face = nullptr;
+				}
 				memdelete(fd);
 				if (p_silent) {
 					return false;
 				} else {
-					ERR_FAIL_V_MSG(false, "FreeType: Error loading font: '" + String(FT_Error_String(error)) + "'.");
+					ERR_FAIL_V_MSG(false, "FreeType: Error loading font: '" + String(FT_Error_String(error)) + "' (face_index=" + String::num_int64(p_font_data->face_index) + ").");
 				}
 			}
 		}
@@ -1451,10 +1439,10 @@ _FORCE_INLINE_ bool TextServerAdvanced::_ensure_cache_for_size(FontAdvanced *p_f
 
 		if (FT_HAS_COLOR(fd->face) && fd->face->num_fixed_sizes > 0) {
 			int best_match = 0;
-			int diff = ABS(fd->size.x - ((int64_t)fd->face->available_sizes[0].width));
+			int diff = Math::abs(fd->size.x - ((int64_t)fd->face->available_sizes[0].width));
 			fd->scale = double(fd->size.x * fd->oversampling) / fd->face->available_sizes[0].width;
 			for (int i = 1; i < fd->face->num_fixed_sizes; i++) {
-				int ndiff = ABS(fd->size.x - ((int64_t)fd->face->available_sizes[i].width));
+				int ndiff = Math::abs(fd->size.x - ((int64_t)fd->face->available_sizes[i].width));
 				if (ndiff < diff) {
 					best_match = i;
 					diff = ndiff;
@@ -2446,6 +2434,24 @@ bool TextServerAdvanced::_font_is_force_autohinter(const RID &p_font_rid) const 
 	return fd->force_autohinter;
 }
 
+void TextServerAdvanced::_font_set_modulate_color_glyphs(const RID &p_font_rid, bool p_modulate) {
+	FontAdvanced *fd = _get_font_data(p_font_rid);
+	ERR_FAIL_NULL(fd);
+
+	MutexLock lock(fd->mutex);
+	if (fd->modulate_color_glyphs != p_modulate) {
+		fd->modulate_color_glyphs = p_modulate;
+	}
+}
+
+bool TextServerAdvanced::_font_is_modulate_color_glyphs(const RID &p_font_rid) const {
+	FontAdvanced *fd = _get_font_data(p_font_rid);
+	ERR_FAIL_NULL_V(fd, false);
+
+	MutexLock lock(fd->mutex);
+	return fd->modulate_color_glyphs;
+}
+
 void TextServerAdvanced::_font_set_hinting(const RID &p_font_rid, TextServer::Hinting p_hinting) {
 	FontAdvanced *fd = _get_font_data(p_font_rid);
 	ERR_FAIL_NULL(fd);
@@ -3312,6 +3318,10 @@ RID TextServerAdvanced::_font_get_glyph_texture_rid(const RID &p_font_rid, const
 			if (ffsd->textures[fgl.texture_idx].dirty) {
 				ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
 				Ref<Image> img = tex.image;
+				if (fgl.from_svg) {
+					// Same as the "fix alpha border" process option when importing SVGs
+					img->fix_alpha_edges();
+				}
 				if (fd->mipmaps && !img->has_mipmaps()) {
 					img = tex.image->duplicate();
 					img->generate_mipmaps();
@@ -3360,6 +3370,10 @@ Size2 TextServerAdvanced::_font_get_glyph_texture_size(const RID &p_font_rid, co
 			if (ffsd->textures[fgl.texture_idx].dirty) {
 				ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
 				Ref<Image> img = tex.image;
+				if (fgl.from_svg) {
+					// Same as the "fix alpha border" process option when importing SVGs
+					img->fix_alpha_edges();
+				}
 				if (fd->mipmaps && !img->has_mipmaps()) {
 					img = tex.image->duplicate();
 					img->generate_mipmaps();
@@ -3798,7 +3812,7 @@ void TextServerAdvanced::_font_draw_glyph(const RID &p_font_rid, const RID &p_ca
 		if (fgl.texture_idx != -1) {
 			Color modulate = p_color;
 #ifdef MODULE_FREETYPE_ENABLED
-			if (ffsd->face && ffsd->textures[fgl.texture_idx].image.is_valid() && (ffsd->textures[fgl.texture_idx].image->get_format() == Image::FORMAT_RGBA8) && !lcd_aa && !fd->msdf) {
+			if (!fd->modulate_color_glyphs && ffsd->face && ffsd->textures[fgl.texture_idx].image.is_valid() && (ffsd->textures[fgl.texture_idx].image->get_format() == Image::FORMAT_RGBA8) && !lcd_aa && !fd->msdf) {
 				modulate.r = modulate.g = modulate.b = 1.0;
 			}
 #endif
@@ -3806,6 +3820,10 @@ void TextServerAdvanced::_font_draw_glyph(const RID &p_font_rid, const RID &p_ca
 				if (ffsd->textures[fgl.texture_idx].dirty) {
 					ShelfPackTexture &tex = ffsd->textures.write[fgl.texture_idx];
 					Ref<Image> img = tex.image;
+					if (fgl.from_svg) {
+						// Same as the "fix alpha border" process option when importing SVGs
+						img->fix_alpha_edges();
+					}
 					if (fd->mipmaps && !img->has_mipmaps()) {
 						img = tex.image->duplicate();
 						img->generate_mipmaps();
@@ -4192,6 +4210,8 @@ void TextServerAdvanced::invalidate(TextServerAdvanced::ShapedTextDataAdvanced *
 	p_shaped->uthk = 0.0;
 	p_shaped->glyphs.clear();
 	p_shaped->glyphs_logical.clear();
+	p_shaped->runs.clear();
+	p_shaped->runs_dirty = true;
 	p_shaped->overrun_trim_data = TrimData();
 	p_shaped->utf16 = Char16String();
 	for (int i = 0; i < p_shaped->bidi_iter.size(); i++) {
@@ -4474,6 +4494,213 @@ Variant TextServerAdvanced::_shaped_get_span_embedded_object(const RID &p_shaped
 	}
 }
 
+String TextServerAdvanced::_shaped_get_span_text(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, String());
+	ShapedTextDataAdvanced *span_sd = sd;
+	if (sd->parent.is_valid()) {
+		span_sd = shaped_owner.get_or_null(sd->parent);
+		ERR_FAIL_NULL_V(span_sd, String());
+	}
+	ERR_FAIL_INDEX_V(p_index, span_sd->spans.size(), String());
+	return span_sd->text.substr(span_sd->spans[p_index].start, span_sd->spans[p_index].end - span_sd->spans[p_index].start);
+}
+
+Variant TextServerAdvanced::_shaped_get_span_object(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, Variant());
+	ShapedTextDataAdvanced *span_sd = sd;
+	if (sd->parent.is_valid()) {
+		span_sd = shaped_owner.get_or_null(sd->parent);
+		ERR_FAIL_NULL_V(span_sd, Variant());
+	}
+	ERR_FAIL_INDEX_V(p_index, span_sd->spans.size(), Variant());
+	return span_sd->spans[p_index].embedded_key;
+}
+
+void TextServerAdvanced::_generate_runs(ShapedTextDataAdvanced *p_sd) const {
+	ERR_FAIL_NULL(p_sd);
+	p_sd->runs.clear();
+
+	ShapedTextDataAdvanced *span_sd = p_sd;
+	if (p_sd->parent.is_valid()) {
+		span_sd = shaped_owner.get_or_null(p_sd->parent);
+		ERR_FAIL_NULL(span_sd);
+	}
+
+	int sd_size = p_sd->glyphs.size();
+	const Glyph *sd_gl = p_sd->glyphs.ptr();
+
+	int span_count = span_sd->spans.size();
+	int span = -1;
+	int span_start = -1;
+	int span_end = -1;
+
+	TextRun run;
+	for (int i = 0; i < sd_size; i += sd_gl[i].count) {
+		const Glyph &gl = sd_gl[i];
+		if (gl.start < 0 || gl.end < 0) {
+			continue;
+		}
+		if (gl.start < span_start || gl.start >= span_end) {
+			span = -1;
+			span_start = -1;
+			span_end = -1;
+			for (int j = 0; j < span_count; j++) {
+				if (gl.start >= span_sd->spans[j].start && gl.end <= span_sd->spans[j].end) {
+					span = j;
+					span_start = span_sd->spans[j].start;
+					span_end = span_sd->spans[j].end;
+					break;
+				}
+			}
+		}
+		if (run.font_rid != gl.font_rid || run.font_size != gl.font_size || run.span_index != span || run.rtl != bool(gl.flags & GRAPHEME_IS_RTL)) {
+			if (run.span_index >= 0) {
+				p_sd->runs.push_back(run);
+			}
+			run.range = Vector2i(gl.start, gl.end);
+			run.font_rid = gl.font_rid;
+			run.font_size = gl.font_size;
+			run.rtl = bool(gl.flags & GRAPHEME_IS_RTL);
+			run.span_index = span;
+		}
+		run.range.x = MIN(run.range.x, gl.start);
+		run.range.y = MAX(run.range.y, gl.end);
+	}
+	if (run.span_index >= 0) {
+		p_sd->runs.push_back(run);
+	}
+	p_sd->runs_dirty = false;
+}
+
+int64_t TextServerAdvanced::_shaped_get_run_count(const RID &p_shaped) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, 0);
+	MutexLock lock(sd->mutex);
+	if (!sd->valid.is_set()) {
+		const_cast<TextServerAdvanced *>(this)->_shaped_text_shape(p_shaped);
+	}
+	if (sd->runs_dirty) {
+		_generate_runs(sd);
+	}
+	return sd->runs.size();
+}
+
+String TextServerAdvanced::_shaped_get_run_text(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, String());
+	MutexLock lock(sd->mutex);
+	if (!sd->valid.is_set()) {
+		const_cast<TextServerAdvanced *>(this)->_shaped_text_shape(p_shaped);
+	}
+	if (sd->runs_dirty) {
+		_generate_runs(sd);
+	}
+	ERR_FAIL_INDEX_V(p_index, sd->runs.size(), String());
+	return sd->text.substr(sd->runs[p_index].range.x - sd->start, sd->runs[p_index].range.y - sd->runs[p_index].range.x);
+}
+
+Vector2i TextServerAdvanced::_shaped_get_run_range(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, Vector2i());
+	MutexLock lock(sd->mutex);
+	if (!sd->valid.is_set()) {
+		const_cast<TextServerAdvanced *>(this)->_shaped_text_shape(p_shaped);
+	}
+	if (sd->runs_dirty) {
+		_generate_runs(sd);
+	}
+	ERR_FAIL_INDEX_V(p_index, sd->runs.size(), Vector2i());
+	return sd->runs[p_index].range;
+}
+
+RID TextServerAdvanced::_shaped_get_run_font_rid(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, RID());
+	MutexLock lock(sd->mutex);
+	if (!sd->valid.is_set()) {
+		const_cast<TextServerAdvanced *>(this)->_shaped_text_shape(p_shaped);
+	}
+	if (sd->runs_dirty) {
+		_generate_runs(sd);
+	}
+	ERR_FAIL_INDEX_V(p_index, sd->runs.size(), RID());
+	return sd->runs[p_index].font_rid;
+}
+
+int TextServerAdvanced::_shaped_get_run_font_size(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, 0);
+	MutexLock lock(sd->mutex);
+	if (!sd->valid.is_set()) {
+		const_cast<TextServerAdvanced *>(this)->_shaped_text_shape(p_shaped);
+	}
+	if (sd->runs_dirty) {
+		_generate_runs(sd);
+	}
+	ERR_FAIL_INDEX_V(p_index, sd->runs.size(), 0);
+	return sd->runs[p_index].font_size;
+}
+
+String TextServerAdvanced::_shaped_get_run_language(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, String());
+	MutexLock lock(sd->mutex);
+	if (!sd->valid.is_set()) {
+		const_cast<TextServerAdvanced *>(this)->_shaped_text_shape(p_shaped);
+	}
+	if (sd->runs_dirty) {
+		_generate_runs(sd);
+	}
+	ERR_FAIL_INDEX_V(p_index, sd->runs.size(), String());
+
+	int span_idx = sd->runs[p_index].span_index;
+	ShapedTextDataAdvanced *span_sd = sd;
+	if (sd->parent.is_valid()) {
+		span_sd = shaped_owner.get_or_null(sd->parent);
+		ERR_FAIL_NULL_V(span_sd, String());
+	}
+	ERR_FAIL_INDEX_V(span_idx, span_sd->spans.size(), String());
+	return span_sd->spans[span_idx].language;
+}
+
+TextServer::Direction TextServerAdvanced::_shaped_get_run_direction(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, TextServer::DIRECTION_LTR);
+	MutexLock lock(sd->mutex);
+	if (!sd->valid.is_set()) {
+		const_cast<TextServerAdvanced *>(this)->_shaped_text_shape(p_shaped);
+	}
+	if (sd->runs_dirty) {
+		_generate_runs(sd);
+	}
+	ERR_FAIL_INDEX_V(p_index, sd->runs.size(), TextServer::DIRECTION_LTR);
+	return sd->runs[p_index].rtl ? TextServer::DIRECTION_RTL : TextServer::DIRECTION_LTR;
+}
+
+Variant TextServerAdvanced::_shaped_get_run_object(const RID &p_shaped, int64_t p_index) const {
+	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, Variant());
+	MutexLock lock(sd->mutex);
+	if (!sd->valid.is_set()) {
+		const_cast<TextServerAdvanced *>(this)->_shaped_text_shape(p_shaped);
+	}
+	if (sd->runs_dirty) {
+		_generate_runs(sd);
+	}
+	ERR_FAIL_INDEX_V(p_index, sd->runs.size(), Variant());
+
+	int span_idx = sd->runs[p_index].span_index;
+	ShapedTextDataAdvanced *span_sd = sd;
+	if (sd->parent.is_valid()) {
+		span_sd = shaped_owner.get_or_null(sd->parent);
+		ERR_FAIL_NULL_V(span_sd, Variant());
+	}
+	ERR_FAIL_INDEX_V(span_idx, span_sd->spans.size(), Variant());
+	return span_sd->spans[span_idx].embedded_key;
+}
+
 void TextServerAdvanced::_shaped_set_span_update_font(const RID &p_shaped, int64_t p_index, const TypedArray<RID> &p_fonts, int64_t p_size, const Dictionary &p_opentype_features) {
 	ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
 	ERR_FAIL_NULL(sd);
@@ -4555,6 +4782,13 @@ bool TextServerAdvanced::_shaped_text_add_object(const RID &p_shaped, const Vari
 	invalidate(sd, true);
 
 	return true;
+}
+
+String TextServerAdvanced::_shaped_get_text(const RID &p_shaped) const {
+	const ShapedTextDataAdvanced *sd = shaped_owner.get_or_null(p_shaped);
+	ERR_FAIL_NULL_V(sd, String());
+
+	return sd->text;
 }
 
 bool TextServerAdvanced::_shaped_text_resize_object(const RID &p_shaped, const Variant &p_key, const Size2 &p_size, InlineAlignment p_inline_align, double p_baseline) {
@@ -4753,6 +4987,8 @@ bool TextServerAdvanced::_shape_substr(ShapedTextDataAdvanced *p_new_sd, const S
 	p_new_sd->sort_valid = false;
 	p_new_sd->upos = p_sd->upos;
 	p_new_sd->uthk = p_sd->uthk;
+	p_new_sd->runs.clear();
+	p_new_sd->runs_dirty = true;
 
 	if (p_length > 0) {
 		p_new_sd->text = p_sd->text.substr(p_start - p_sd->start, p_length);
@@ -4773,17 +5009,24 @@ bool TextServerAdvanced::_shape_substr(ShapedTextDataAdvanced *p_new_sd, const S
 			}
 		}
 
+		Vector<Vector3i> bidi_ranges;
+		if (p_sd->bidi_override.is_empty()) {
+			bidi_ranges.push_back(Vector3i(p_sd->start, p_sd->end, DIRECTION_INHERITED));
+		} else {
+			bidi_ranges = p_sd->bidi_override;
+		}
+
 		int sd_size = p_sd->glyphs.size();
 		const Glyph *sd_glyphs = p_sd->glyphs.ptr();
-		for (int ov = 0; ov < p_sd->bidi_override.size(); ov++) {
+		for (int ov = 0; ov < bidi_ranges.size(); ov++) {
 			UErrorCode err = U_ZERO_ERROR;
 
-			if (p_sd->bidi_override[ov].x >= p_start + p_length || p_sd->bidi_override[ov].y <= p_start) {
+			if (bidi_ranges[ov].x >= p_start + p_length || bidi_ranges[ov].y <= p_start) {
 				continue;
 			}
-			int ov_start = _convert_pos_inv(p_sd, p_sd->bidi_override[ov].x);
+			int ov_start = _convert_pos_inv(p_sd, bidi_ranges[ov].x);
 			int start = MAX(0, _convert_pos_inv(p_sd, p_start) - ov_start);
-			int end = MIN(_convert_pos_inv(p_sd, p_start + p_length), _convert_pos_inv(p_sd, p_sd->bidi_override[ov].y)) - ov_start;
+			int end = MIN(_convert_pos_inv(p_sd, p_start + p_length), _convert_pos_inv(p_sd, bidi_ranges[ov].y)) - ov_start;
 
 			ERR_FAIL_COND_V_MSG((start < 0 || end - start > p_new_sd->utf16.length()), false, "Invalid BiDi override range.");
 
@@ -4797,7 +5040,7 @@ bool TextServerAdvanced::_shape_substr(ShapedTextDataAdvanced *p_new_sd, const S
 						// Line BiDi failed (string contains incompatible control characters), try full paragraph BiDi instead.
 						err = U_ZERO_ERROR;
 						const UChar *data = p_sd->utf16.get_data();
-						switch (static_cast<TextServer::Direction>(p_sd->bidi_override[ov].z)) {
+						switch (static_cast<TextServer::Direction>(bidi_ranges[ov].z)) {
 							case DIRECTION_LTR: {
 								ubidi_setPara(bidi_iter, data + start, end - start, UBIDI_LTR, nullptr, &err);
 							} break;
@@ -4860,8 +5103,8 @@ bool TextServerAdvanced::_shape_substr(ShapedTextDataAdvanced *p_new_sd, const S
 							gl.index = index;
 							gl.advance = w;
 						}
-						if ((gl.flags & GRAPHEME_IS_EMBEDDED_OBJECT) == GRAPHEME_IS_EMBEDDED_OBJECT && gl.span_index >= 0 && gl.span_index < span_size) {
-							Variant key = p_sd->spans[gl.span_index].embedded_key;
+						if ((gl.flags & GRAPHEME_IS_EMBEDDED_OBJECT) == GRAPHEME_IS_EMBEDDED_OBJECT && gl.span_index + p_new_sd->first_span >= 0 && gl.span_index + p_new_sd->first_span < span_size) {
+							Variant key = p_sd->spans[gl.span_index + p_new_sd->first_span].embedded_key;
 							if (key != Variant()) {
 								ShapedTextDataAdvanced::EmbeddedObject obj = p_sd->objects[key];
 								if (p_new_sd->orientation == ORIENTATION_HORIZONTAL) {
@@ -5301,6 +5544,9 @@ void TextServerAdvanced::_shaped_text_overrun_trim_to_width(const RID &p_shaped_
 	if (!sd->valid.is_set()) {
 		_shaped_text_shape(p_shaped_line);
 	}
+	if (!sd->line_breaks_valid) {
+		_shaped_text_update_breaks(p_shaped_line);
+	}
 
 	sd->text_trimmed = false;
 	sd->overrun_trim_data.ellipsis_glyph_buf.clear();
@@ -5405,14 +5651,15 @@ void TextServerAdvanced::_shaped_text_overrun_trim_to_width(const RID &p_shaped_
 
 	int ell_min_characters = 6;
 	double width = sd->width;
+	double width_without_el = width;
 
 	bool is_rtl = sd->para_direction == DIRECTION_RTL;
 
 	int trim_pos = (is_rtl) ? sd_size : 0;
 	int ellipsis_pos = (enforce_ellipsis) ? 0 : -1;
 
-	int last_valid_cut = 0;
-	bool found = false;
+	int last_valid_cut = -1;
+	int last_valid_cut_witout_el = -1;
 
 	int glyphs_from = (is_rtl) ? 0 : sd_size - 1;
 	int glyphs_to = (is_rtl) ? sd_size - 1 : -1;
@@ -5428,18 +5675,32 @@ void TextServerAdvanced::_shaped_text_overrun_trim_to_width(const RID &p_shaped_
 			}
 			if (sd_glyphs[i].count > 0) {
 				bool above_min_char_threshold = ((is_rtl) ? sd_size - 1 - i : i) >= ell_min_characters;
-
+				if (!above_min_char_threshold && last_valid_cut_witout_el != -1) {
+					trim_pos = last_valid_cut_witout_el;
+					ellipsis_pos = -1;
+					width = width_without_el;
+					break;
+				}
+				if (!enforce_ellipsis && width <= p_width && last_valid_cut_witout_el == -1) {
+					if (cut_per_word && above_min_char_threshold) {
+						if ((sd_glyphs[i].flags & GRAPHEME_IS_BREAK_SOFT) == GRAPHEME_IS_BREAK_SOFT) {
+							last_valid_cut_witout_el = i;
+							width_without_el = width;
+						}
+					} else {
+						last_valid_cut_witout_el = i;
+						width_without_el = width;
+					}
+				}
 				if (width + (((above_min_char_threshold && add_ellipsis) || enforce_ellipsis) ? ellipsis_width : 0) <= p_width) {
 					if (cut_per_word && above_min_char_threshold) {
 						if ((sd_glyphs[i].flags & GRAPHEME_IS_BREAK_SOFT) == GRAPHEME_IS_BREAK_SOFT) {
 							last_valid_cut = i;
-							found = true;
 						}
 					} else {
 						last_valid_cut = i;
-						found = true;
 					}
-					if (found) {
+					if (last_valid_cut != -1) {
 						trim_pos = last_valid_cut;
 
 						if (add_ellipsis && (above_min_char_threshold || enforce_ellipsis) && width - ellipsis_width <= p_width) {
@@ -5625,8 +5886,13 @@ bool TextServerAdvanced::_shaped_text_update_breaks(const RID &p_shaped) {
 				i++;
 			}
 			int r_end = sd->spans[i].end;
-			UBreakIterator *bi = ubrk_open(UBRK_LINE, (language.is_empty()) ? TranslationServer::get_singleton()->get_tool_locale().ascii().get_data() : language.ascii().get_data(), data + _convert_pos_inv(sd, r_start), _convert_pos_inv(sd, r_end - r_start), &err);
-			if (U_FAILURE(err)) {
+			UBreakIterator *bi = _create_line_break_iterator_for_locale(language, &err);
+
+			if (!U_FAILURE(err) && bi) {
+				ubrk_setText(bi, data + _convert_pos_inv(sd, r_start), _convert_pos_inv(sd, r_end - r_start), &err);
+			}
+
+			if (U_FAILURE(err) || !bi) {
 				// No data loaded - use fallback.
 				for (int j = r_start; j < r_end; j++) {
 					char32_t c = sd->text[j - sd->start];
@@ -5654,8 +5920,8 @@ bool TextServerAdvanced::_shaped_text_update_breaks(const RID &p_shaped) {
 						sd->break_inserts++;
 					}
 				}
+				ubrk_close(bi);
 			}
-			ubrk_close(bi);
 			i++;
 		}
 		sd->break_ops_valid = true;
@@ -6083,17 +6349,15 @@ Glyph TextServerAdvanced::_shape_single_glyph(ShapedTextDataAdvanced *p_sd, char
 	return gl;
 }
 
-_FORCE_INLINE_ void TextServerAdvanced::_add_featuers(const Dictionary &p_source, Vector<hb_feature_t> &r_ftrs) {
-	Array keys = p_source.keys();
-	Array values = p_source.values();
-	for (int i = 0; i < keys.size(); i++) {
-		int32_t value = values[i];
+_FORCE_INLINE_ void TextServerAdvanced::_add_features(const Dictionary &p_source, Vector<hb_feature_t> &r_ftrs) {
+	for (const KeyValue<Variant, Variant> &key_value : p_source) {
+		int32_t value = key_value.value;
 		if (value >= 0) {
 			hb_feature_t feature;
-			if (keys[i].is_string()) {
-				feature.tag = _name_to_tag(keys[i]);
+			if (key_value.key.is_string()) {
+				feature.tag = _name_to_tag(key_value.key);
 			} else {
-				feature.tag = keys[i];
+				feature.tag = key_value.key;
 			}
 			feature.value = value;
 			feature.start = 0;
@@ -6101,6 +6365,24 @@ _FORCE_INLINE_ void TextServerAdvanced::_add_featuers(const Dictionary &p_source
 			r_ftrs.push_back(feature);
 		}
 	}
+}
+
+UBreakIterator *TextServerAdvanced::_create_line_break_iterator_for_locale(const String &p_language, UErrorCode *r_err) const {
+	// Creating UBreakIterator (ubrk_open) is surprisingly costly.
+	// However, cloning (ubrk_clone) is cheaper, so we keep around blueprints to accelerate creating new ones.
+
+	const String language = p_language.is_empty() ? TranslationServer::get_singleton()->get_tool_locale() : p_language;
+	_THREAD_SAFE_METHOD_
+	const HashMap<String, UBreakIterator *>::Iterator key_value = line_break_iterators_per_language.find(language);
+	if (key_value) {
+		return ubrk_clone(key_value->value, r_err);
+	}
+	UBreakIterator *bi = ubrk_open(UBRK_LINE, language.ascii().get_data(), nullptr, 0, r_err);
+	if (U_FAILURE(*r_err) || !bi) {
+		return nullptr;
+	}
+	line_break_iterators_per_language.insert(language, bi);
+	return ubrk_clone(bi, r_err);
 }
 
 void TextServerAdvanced::_shape_run(ShapedTextDataAdvanced *p_sd, int64_t p_start, int64_t p_end, hb_script_t p_script, hb_direction_t p_direction, TypedArray<RID> p_fonts, int64_t p_span, int64_t p_fb_index, int64_t p_prev_start, int64_t p_prev_end, RID p_prev_font) {
@@ -6246,8 +6528,8 @@ void TextServerAdvanced::_shape_run(ShapedTextDataAdvanced *p_sd, int64_t p_star
 	hb_buffer_add_utf32(p_sd->hb_buffer, (const uint32_t *)p_sd->text.ptr(), p_sd->text.length(), p_start, p_end - p_start);
 
 	Vector<hb_feature_t> ftrs;
-	_add_featuers(_font_get_opentype_feature_overrides(f), ftrs);
-	_add_featuers(p_sd->spans[p_span].features, ftrs);
+	_add_features(_font_get_opentype_feature_overrides(f), ftrs);
+	_add_features(p_sd->spans[p_span].features, ftrs);
 
 	hb_shape(hb_font, p_sd->hb_buffer, ftrs.is_empty() ? nullptr : &ftrs[0], ftrs.size());
 
@@ -6490,14 +6772,19 @@ bool TextServerAdvanced::_shaped_text_shape(const RID &p_shaped) {
 		} break;
 	}
 
+	Vector<Vector3i> bidi_ranges;
 	if (sd->bidi_override.is_empty()) {
-		sd->bidi_override.push_back(Vector3i(sd->start, sd->end, DIRECTION_INHERITED));
+		bidi_ranges.push_back(Vector3i(sd->start, sd->end, DIRECTION_INHERITED));
+	} else {
+		bidi_ranges = sd->bidi_override;
 	}
+	sd->runs.clear();
+	sd->runs_dirty = true;
 
-	for (int ov = 0; ov < sd->bidi_override.size(); ov++) {
+	for (int ov = 0; ov < bidi_ranges.size(); ov++) {
 		// Create BiDi iterator.
-		int start = _convert_pos_inv(sd, sd->bidi_override[ov].x - sd->start);
-		int end = _convert_pos_inv(sd, sd->bidi_override[ov].y - sd->start);
+		int start = _convert_pos_inv(sd, bidi_ranges[ov].x - sd->start);
+		int end = _convert_pos_inv(sd, bidi_ranges[ov].y - sd->start);
 
 		if (start < 0 || end - start > sd->utf16.length()) {
 			continue;
@@ -6506,7 +6793,7 @@ bool TextServerAdvanced::_shaped_text_shape(const RID &p_shaped) {
 		UErrorCode err = U_ZERO_ERROR;
 		UBiDi *bidi_iter = ubidi_openSized(end - start, 0, &err);
 		if (U_SUCCESS(err)) {
-			switch (static_cast<TextServer::Direction>(sd->bidi_override[ov].z)) {
+			switch (static_cast<TextServer::Direction>(bidi_ranges[ov].z)) {
 				case DIRECTION_LTR: {
 					ubidi_setPara(bidi_iter, data + start, end - start, UBIDI_LTR, nullptr, &err);
 				} break;
@@ -6868,7 +7155,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		ar.lang.insert(StringName("sd_Arab_PK"));
 		ar.digits = U"٠١٢٣٤٥٦٧٨٩٫";
 		ar.percent_sign = U"٪";
-		ar.exp = U"اس";
+		ar.exp_l = U"اس";
+		ar.exp_u = U"اس";
 		num_systems.push_back(ar);
 	}
 
@@ -6899,7 +7187,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		pr.lang.insert(StringName("uz_Arab_AF"));
 		pr.digits = U"۰۱۲۳۴۵۶۷۸۹٫";
 		pr.percent_sign = U"٪";
-		pr.exp = U"اس";
+		pr.exp_l = U"اس";
+		pr.exp_u = U"اس";
 		num_systems.push_back(pr);
 	}
 
@@ -6917,7 +7206,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		bn.lang.insert(StringName("mni_Beng_IN"));
 		bn.digits = U"০১২৩৪৫৬৭৮৯.";
 		bn.percent_sign = U"%";
-		bn.exp = U"e";
+		bn.exp_l = U"e";
+		bn.exp_u = U"E";
 		num_systems.push_back(bn);
 	}
 
@@ -6933,7 +7223,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		mr.lang.insert(StringName("sa_IN"));
 		mr.digits = U"०१२३४५६७८९.";
 		mr.percent_sign = U"%";
-		mr.exp = U"e";
+		mr.exp_l = U"e";
+		mr.exp_u = U"E";
 		num_systems.push_back(mr);
 	}
 
@@ -6944,7 +7235,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		dz.lang.insert(StringName("dz_BT"));
 		dz.digits = U"༠༡༢༣༤༥༦༧༨༩.";
 		dz.percent_sign = U"%";
-		dz.exp = U"e";
+		dz.exp_l = U"e";
+		dz.exp_u = U"E";
 		num_systems.push_back(dz);
 	}
 
@@ -6957,7 +7249,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		sat.lang.insert(StringName("sat_Olck_IN"));
 		sat.digits = U"᱐᱑᱒᱓᱔᱕᱖᱗᱘᱙.";
 		sat.percent_sign = U"%";
-		sat.exp = U"e";
+		sat.exp_l = U"e";
+		sat.exp_u = U"E";
 		num_systems.push_back(sat);
 	}
 
@@ -6968,7 +7261,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		my.lang.insert(StringName("my_MM"));
 		my.digits = U"၀၁၂၃၄၅၆၇၈၉.";
 		my.percent_sign = U"%";
-		my.exp = U"e";
+		my.exp_l = U"e";
+		my.exp_u = U"E";
 		num_systems.push_back(my);
 	}
 
@@ -6980,7 +7274,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		ccp.lang.insert(StringName("ccp_IN"));
 		ccp.digits = U"𑄶𑄷𑄸𑄹𑄺𑄻𑄼𑄽𑄾𑄿.";
 		ccp.percent_sign = U"%";
-		ccp.exp = U"e";
+		ccp.exp_l = U"e";
+		ccp.exp_u = U"E";
 		num_systems.push_back(ccp);
 	}
 
@@ -7002,7 +7297,8 @@ void TextServerAdvanced::_insert_num_systems_lang() {
 		ff.lang.insert(StringName("ff_Adlm_SN"));
 		ff.digits = U"𞥐𞥑𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙.";
 		ff.percent_sign = U"%";
-		ff.exp = U"e";
+		ff.exp_l = U"𞤉";
+		ff.exp_u = U"𞤉";
 		num_systems.push_back(ff);
 	}
 }
@@ -7016,8 +7312,8 @@ String TextServerAdvanced::_format_number(const String &p_string, const String &
 			if (num_systems[i].digits.is_empty()) {
 				return p_string;
 			}
-			res.replace("e", num_systems[i].exp);
-			res.replace("E", num_systems[i].exp);
+			res = res.replace("e", num_systems[i].exp_l);
+			res = res.replace("E", num_systems[i].exp_u);
 			char32_t *data = res.ptrw();
 			for (int j = 0; j < res.length(); j++) {
 				if (data[j] >= 0x30 && data[j] <= 0x39) {
@@ -7041,7 +7337,8 @@ String TextServerAdvanced::_parse_number(const String &p_string, const String &p
 			if (num_systems[i].digits.is_empty()) {
 				return p_string;
 			}
-			res.replace(num_systems[i].exp, "e");
+			res = res.replace(num_systems[i].exp_l, "e");
+			res = res.replace(num_systems[i].exp_u, "E");
 			char32_t *data = res.ptrw();
 			for (int j = 0; j < res.length(); j++) {
 				if (data[j] == num_systems[i].digits[10]) {
@@ -7664,6 +7961,9 @@ TextServerAdvanced::~TextServerAdvanced() {
 	if (allowed != nullptr) {
 		uset_close(allowed);
 		allowed = nullptr;
+	}
+	for (const KeyValue<String, UBreakIterator *> &bi : line_break_iterators_per_language) {
+		ubrk_close(bi.value);
 	}
 
 	std::atexit(u_cleanup);

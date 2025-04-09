@@ -38,10 +38,6 @@
 #include "scene/resources/mesh.h"
 #include "scene/resources/surface_tool.h"
 
-uint32_t EditorOBJImporter::get_import_flags() const {
-	return IMPORT_SCENE;
-}
-
 static Error _parse_material_library(const String &p_path, HashMap<String, Ref<StandardMaterial3D>> &material_map, List<String> *r_missing_deps) {
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 	ERR_FAIL_COND_V_MSG(f.is_null(), ERR_CANT_OPEN, vformat("Couldn't open MTL file '%s', it may not exist or not be readable.", p_path));
@@ -369,7 +365,7 @@ static Error _parse_obj(const String &p_path, List<Ref<ImporterMesh>> &r_meshes,
 				face[1] = face[2];
 			}
 		} else if (l.begins_with("s ")) { //smoothing
-			String what = l.substr(2, l.length()).strip_edges();
+			String what = l.substr(2).strip_edges();
 			bool do_smooth;
 			if (what == "off") {
 				do_smooth = false;
@@ -406,7 +402,7 @@ static Error _parse_obj(const String &p_path, List<Ref<ImporterMesh>> &r_meshes,
 			//groups are too annoying
 			if (surf_tool->get_vertex_array().size()) {
 				//another group going on, commit it
-				if (normals.size() == 0) {
+				if (normals.is_empty()) {
 					surf_tool->generate_normals();
 				}
 
@@ -480,7 +476,7 @@ static Error _parse_obj(const String &p_path, List<Ref<ImporterMesh>> &r_meshes,
 			}
 
 			if (l.begins_with("o ")) {
-				name = l.substr(2, l.length()).strip_edges();
+				name = l.substr(2).strip_edges();
 			}
 
 			if (l.begins_with("usemtl ")) {
@@ -488,7 +484,7 @@ static Error _parse_obj(const String &p_path, List<Ref<ImporterMesh>> &r_meshes,
 			}
 
 			if (l.begins_with("g ")) {
-				current_group = l.substr(2, l.length()).strip_edges();
+				current_group = l.substr(2).strip_edges();
 			}
 
 		} else if (l.begins_with("mtllib ")) { //parse material
@@ -588,9 +584,6 @@ void EditorOBJImporter::get_extensions(List<String> *r_extensions) const {
 	r_extensions->push_back("obj");
 }
 
-EditorOBJImporter::EditorOBJImporter() {
-}
-
 ////////////////////////////////////////////////////
 
 String ResourceImporterOBJ::get_importer_name() const {
@@ -685,7 +678,4 @@ Error ResourceImporterOBJ::import(ResourceUID::ID p_source_id, const String &p_s
 	r_gen_files->push_back(save_path);
 
 	return OK;
-}
-
-ResourceImporterOBJ::ResourceImporterOBJ() {
 }

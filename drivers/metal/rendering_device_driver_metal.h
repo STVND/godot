@@ -28,15 +28,13 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef RENDERING_DEVICE_DRIVER_METAL_H
-#define RENDERING_DEVICE_DRIVER_METAL_H
+#pragma once
 
 #import "metal_objects.h"
 
-#import "servers/rendering/rendering_device_driver.h"
+#include "servers/rendering/rendering_device_driver.h"
 
 #import <Metal/Metal.h>
-#import <spirv.hpp>
 #import <variant>
 
 #ifdef DEBUG_ENABLED
@@ -47,7 +45,7 @@
 
 class RenderingContextDriverMetal;
 
-class API_AVAILABLE(macos(11.0), ios(14.0)) RenderingDeviceDriverMetal : public RenderingDeviceDriver {
+class API_AVAILABLE(macos(11.0), ios(14.0), tvos(14.0)) RenderingDeviceDriverMetal : public RenderingDeviceDriver {
 	friend struct ShaderCacheEntry;
 
 	template <typename T>
@@ -67,6 +65,8 @@ class API_AVAILABLE(macos(11.0), ios(14.0)) RenderingDeviceDriverMetal : public 
 
 	RDD::Capabilities capabilities;
 	RDD::MultiviewCapabilities multiview_capabilities;
+	RDD::FragmentShadingRateCapabilities fsr_capabilities;
+	RDD::FragmentDensityMapCapabilities fdm_capabilities;
 
 	id<MTLBinaryArchive> archive = nil;
 	uint32_t archive_count = 0;
@@ -106,6 +106,7 @@ public:
 	virtual uint64_t buffer_get_allocation_size(BufferID p_buffer) override final;
 	virtual uint8_t *buffer_map(BufferID p_buffer) override final;
 	virtual void buffer_unmap(BufferID p_buffer) override final;
+	virtual uint64_t buffer_get_device_address(BufferID p_buffer) override final;
 
 #pragma mark - Texture
 
@@ -316,7 +317,7 @@ public:
 
 	// ----- SUBPASS -----
 
-	virtual RenderPassID render_pass_create(VectorView<Attachment> p_attachments, VectorView<Subpass> p_subpasses, VectorView<SubpassDependency> p_subpass_dependencies, uint32_t p_view_count) override final;
+	virtual RenderPassID render_pass_create(VectorView<Attachment> p_attachments, VectorView<Subpass> p_subpasses, VectorView<SubpassDependency> p_subpass_dependencies, uint32_t p_view_count, AttachmentReference p_fragment_density_map_attachment) override final;
 	virtual void render_pass_free(RenderPassID p_render_pass) override final;
 
 	// ----- COMMANDS -----
@@ -421,6 +422,8 @@ public:
 	virtual uint64_t api_trait_get(ApiTrait p_trait) override final;
 	virtual bool has_feature(Features p_feature) override final;
 	virtual const MultiviewCapabilities &get_multiview_capabilities() override final;
+	virtual const FragmentShadingRateCapabilities &get_fragment_shading_rate_capabilities() override final;
+	virtual const FragmentDensityMapCapabilities &get_fragment_density_map_capabilities() override final;
 	virtual String get_api_name() const override final { return "Metal"; }
 	virtual String get_api_version() const override final;
 	virtual String get_pipeline_cache_uuid() const override final;
@@ -444,5 +447,3 @@ public:
 	RenderingDeviceDriverMetal(RenderingContextDriverMetal *p_context_driver);
 	~RenderingDeviceDriverMetal();
 };
-
-#endif // RENDERING_DEVICE_DRIVER_METAL_H

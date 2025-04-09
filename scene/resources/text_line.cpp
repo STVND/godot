@@ -35,6 +35,7 @@ void TextLine::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_direction", "direction"), &TextLine::set_direction);
 	ClassDB::bind_method(D_METHOD("get_direction"), &TextLine::get_direction);
+	ClassDB::bind_method(D_METHOD("get_inferred_direction"), &TextLine::get_inferred_direction);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "direction", PROPERTY_HINT_ENUM, "Auto,Left-to-right,Right-to-left"), "set_direction", "get_direction");
 
@@ -79,7 +80,7 @@ void TextLine::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_text_overrun_behavior", "overrun_behavior"), &TextLine::set_text_overrun_behavior);
 	ClassDB::bind_method(D_METHOD("get_text_overrun_behavior"), &TextLine::get_text_overrun_behavior);
 
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "text_overrun_behavior", PROPERTY_HINT_ENUM, "Trim Nothing,Trim Characters,Trim Words,Ellipsis,Word Ellipsis"), "set_text_overrun_behavior", "get_text_overrun_behavior");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "text_overrun_behavior", PROPERTY_HINT_ENUM, "Trim Nothing,Trim Characters,Trim Words,Ellipsis (6+ Characters),Word Ellipsis (6+ Characters),Ellipsis (Always),Word Ellipsis (Always)"), "set_text_overrun_behavior", "get_text_overrun_behavior");
 
 	ClassDB::bind_method(D_METHOD("set_ellipsis_char", "char"), &TextLine::set_ellipsis_char);
 	ClassDB::bind_method(D_METHOD("get_ellipsis_char"), &TextLine::get_ellipsis_char);
@@ -118,6 +119,17 @@ void TextLine::_shape() const {
 		BitField<TextServer::TextOverrunFlag> overrun_flags = TextServer::OVERRUN_NO_TRIM;
 		if (overrun_behavior != TextServer::OVERRUN_NO_TRIMMING) {
 			switch (overrun_behavior) {
+				case TextServer::OVERRUN_TRIM_WORD_ELLIPSIS_FORCE: {
+					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
+					overrun_flags.set_flag(TextServer::OVERRUN_TRIM_WORD_ONLY);
+					overrun_flags.set_flag(TextServer::OVERRUN_ADD_ELLIPSIS);
+					overrun_flags.set_flag(TextServer::OVERRUN_ENFORCE_ELLIPSIS);
+				} break;
+				case TextServer::OVERRUN_TRIM_ELLIPSIS_FORCE: {
+					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
+					overrun_flags.set_flag(TextServer::OVERRUN_ADD_ELLIPSIS);
+					overrun_flags.set_flag(TextServer::OVERRUN_ENFORCE_ELLIPSIS);
+				} break;
 				case TextServer::OVERRUN_TRIM_WORD_ELLIPSIS:
 					overrun_flags.set_flag(TextServer::OVERRUN_TRIM);
 					overrun_flags.set_flag(TextServer::OVERRUN_TRIM_WORD_ONLY);
@@ -187,6 +199,10 @@ void TextLine::set_direction(TextServer::Direction p_direction) {
 
 TextServer::Direction TextLine::get_direction() const {
 	return TS->shaped_text_get_direction(rid);
+}
+
+TextServer::Direction TextLine::get_inferred_direction() const {
+	return TS->shaped_text_get_inferred_direction(rid);
 }
 
 void TextLine::set_orientation(TextServer::Orientation p_orientation) {

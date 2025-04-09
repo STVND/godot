@@ -496,7 +496,7 @@
 				Create a new map.
 			</description>
 		</method>
-		<method name="map_force_update">
+		<method name="map_force_update" deprecated="This method is no longer supported, as it is incompatible with asynchronous updates. It can only be used in a single-threaded context, at your own risk.">
 			<return type="void" />
 			<param index="0" name="map" type="RID" />
 			<description>
@@ -923,6 +923,13 @@
 			<return type="RID" />
 			<description>
 				Creates a new region.
+			</description>
+		</method>
+		<method name="region_get_bounds" qualifiers="const">
+			<return type="AABB" />
+			<param index="0" name="region" type="RID" />
+			<description>
+				Returns the axis-aligned bounding box for the [param region]'s transformed navigation mesh.
 			</description>
 		</method>
 		<method name="region_get_closest_point" qualifiers="const">

@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef TEXT_PARAGRAPH_H
-#define TEXT_PARAGRAPH_H
+#pragma once
 
 #include "core/templates/local_vector.h"
 #include "scene/resources/font.h"
@@ -78,6 +77,7 @@ public:
 
 	void set_direction(TextServer::Direction p_direction);
 	TextServer::Direction get_direction() const;
+	TextServer::Direction get_inferred_direction() const;
 
 	void set_orientation(TextServer::Orientation p_orientation);
 	TextServer::Orientation get_orientation() const;
@@ -130,6 +130,8 @@ public:
 
 	Size2 get_size() const;
 
+	Vector2i get_range() const;
+
 	int get_line_count() const;
 
 	Array get_line_objects(int p_line) const;
@@ -164,5 +166,3 @@ public:
 	TextParagraph();
 	~TextParagraph();
 };
-
-#endif // TEXT_PARAGRAPH_H

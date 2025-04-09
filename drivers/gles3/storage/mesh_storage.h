@@ -28,8 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef MESH_STORAGE_GLES3_H
-#define MESH_STORAGE_GLES3_H
+#pragma once
 
 #ifdef GLES3_ENABLED
 
@@ -502,7 +501,7 @@ public:
 	virtual RID _multimesh_allocate() override;
 	virtual void _multimesh_initialize(RID p_rid) override;
 	virtual void _multimesh_free(RID p_rid) override;
-	virtual void _multimesh_allocate_data(RID p_multimesh, int p_instances, RS::MultimeshTransformFormat p_transform_format, bool p_use_colors = false, bool p_use_custom_data = false) override;
+	virtual void _multimesh_allocate_data(RID p_multimesh, int p_instances, RS::MultimeshTransformFormat p_transform_format, bool p_use_colors = false, bool p_use_custom_data = false, bool p_use_indirect = false) override;
 	virtual int _multimesh_get_instance_count(RID p_multimesh) const override;
 
 	virtual void _multimesh_set_mesh(RID p_multimesh, RID p_mesh) override;
@@ -521,6 +520,7 @@ public:
 	virtual Color _multimesh_instance_get_color(RID p_multimesh, int p_index) const override;
 	virtual Color _multimesh_instance_get_custom_data(RID p_multimesh, int p_index) const override;
 	virtual void _multimesh_set_buffer(RID p_multimesh, const Vector<float> &p_buffer) override;
+	virtual RID _multimesh_get_command_buffer_rd_rid(RID p_multimesh) const override;
 	virtual RID _multimesh_get_buffer_rd_rid(RID p_multimesh) const override;
 	virtual Vector<float> _multimesh_get_buffer(RID p_multimesh) const override;
 
@@ -603,5 +603,3 @@ public:
 } // namespace GLES3
 
 #endif // GLES3_ENABLED
-
-#endif // MESH_STORAGE_GLES3_H
