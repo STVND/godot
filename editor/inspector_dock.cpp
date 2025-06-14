@@ -646,10 +646,40 @@ void InspectorDock::apply_script_properties(Object *p_object) {
 		return;
 	}
 
+	List<PropertyInfo> properties;
+	si->get_property_list(&properties);
+
 	for (const Pair<StringName, Variant> &E : stored_properties) {
 		Variant current_prop;
 		if (si->get(E.first, current_prop) && current_prop.get_type() == E.second.get_type()) {
 			si->set(E.first, E.second);
+		} else if (E.second.get_type() == Variant::OBJECT) {
+			for (const PropertyInfo &pi : properties) {
+				if (E.first != pi.name) {
+					continue;
+				}
+
+				if (pi.type != Variant::OBJECT) {
+					break;
+				}
+
+				Object *p_property_object = E.second;
+
+				if (p_property_object->is_class(pi.hint_string)) {
+					si->set(E.first, E.second);
+					break;
+				}
+
+				Ref<Script> base_script = p_property_object->get_script();
+				while (base_script.is_valid()) {
+					if (base_script->get_global_name() == pi.hint_string) {
+						si->set(E.first, E.second);
+						break;
+					}
+					base_script = base_script->get_base_script();
+				}
+				break;
+			}
 		}
 	}
 	stored_properties.clear();
@@ -692,7 +722,7 @@ InspectorDock::InspectorDock(EditorData &p_editor_data) {
 	resource_new_button->set_accessibility_name(TTRC("New Resource"));
 	general_options_hb->add_child(resource_new_button);
 	resource_new_button->connect(SceneStringName(pressed), callable_mp(this, &InspectorDock::_new_resource));
-	resource_new_button->set_focus_mode(Control::FOCUS_NONE);
+	resource_new_button->set_focus_mode(Control::FOCUS_ACCESSIBILITY);
 
 	resource_load_button = memnew(Button);
 	resource_load_button->set_theme_type_variation("FlatMenuButton");
@@ -700,7 +730,7 @@ InspectorDock::InspectorDock(EditorData &p_editor_data) {
 	resource_load_button->set_accessibility_name(TTRC("Load Resource"));
 	general_options_hb->add_child(resource_load_button);
 	resource_load_button->connect(SceneStringName(pressed), callable_mp(this, &InspectorDock::_open_resource_selector));
-	resource_load_button->set_focus_mode(Control::FOCUS_NONE);
+	resource_load_button->set_focus_mode(Control::FOCUS_ACCESSIBILITY);
 
 	resource_save_button = memnew(MenuButton);
 	resource_save_button->set_flat(false);
@@ -711,7 +741,7 @@ InspectorDock::InspectorDock(EditorData &p_editor_data) {
 	resource_save_button->get_popup()->add_item(TTRC("Save"), RESOURCE_SAVE);
 	resource_save_button->get_popup()->add_item(TTRC("Save As..."), RESOURCE_SAVE_AS);
 	resource_save_button->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &InspectorDock::_menu_option));
-	resource_save_button->set_focus_mode(Control::FOCUS_NONE);
+	resource_save_button->set_focus_mode(Control::FOCUS_ACCESSIBILITY);
 	resource_save_button->set_disabled(true);
 
 	resource_extra_button = memnew(MenuButton);
@@ -811,6 +841,7 @@ InspectorDock::InspectorDock(EditorData &p_editor_data) {
 	unique_resources_confirmation->add_child(container);
 
 	unique_resources_label = memnew(Label);
+	unique_resources_label->set_focus_mode(FOCUS_ACCESSIBILITY);
 	container->add_child(unique_resources_label);
 
 	unique_resources_list_tree = memnew(Tree);
@@ -821,6 +852,7 @@ InspectorDock::InspectorDock(EditorData &p_editor_data) {
 	container->add_child(unique_resources_list_tree);
 
 	Label *bottom_label = memnew(Label);
+	bottom_label->set_focus_mode(FOCUS_ACCESSIBILITY);
 	bottom_label->set_text(TTRC("This cannot be undone. Are you sure?"));
 	container->add_child(bottom_label);
 

@@ -490,7 +490,7 @@ bool FreeDesktopPortalDesktop::file_chooser_parse_response(DBusMessageIter *p_it
 						while (dbus_message_iter_get_arg_type(&uri_iter) == DBUS_TYPE_STRING) {
 							const char *value;
 							dbus_message_iter_get_basic(&uri_iter, &value);
-							r_urls.push_back(String::utf8(value).trim_prefix("file://").uri_decode());
+							r_urls.push_back(String::utf8(value).trim_prefix("file://").uri_file_decode());
 							if (!dbus_message_iter_next(&uri_iter)) {
 								break;
 							}
@@ -526,7 +526,7 @@ bool FreeDesktopPortalDesktop::color_picker(const String &p_xid, const Callable 
 
 	String dbus_unique_name = String::utf8(dbus_bus_get_unique_name(monitor_connection));
 	String token = String::hex_encode_buffer(uuid, 64);
-	String path = vformat("/org/freedesktop/portal/desktop/request/%s/%s", dbus_unique_name.replace(".", "_").replace(":", ""), token);
+	String path = vformat("/org/freedesktop/portal/desktop/request/%s/%s", dbus_unique_name.replace_char('.', '_').remove_char(':'), token);
 
 	cd.path = path;
 	cd.filter = vformat("type='signal',sender='org.freedesktop.portal.Desktop',path='%s',interface='org.freedesktop.portal.Request',member='Response',destination='%s'", path, dbus_unique_name);
@@ -670,7 +670,7 @@ Error FreeDesktopPortalDesktop::file_dialog_show(DisplayServer::WindowID p_windo
 		Vector<String> tokens = p_filters[i].split(";");
 		if (tokens.size() >= 1) {
 			String flt = tokens[0].strip_edges();
-			String mime = (tokens.size() >= 2) ? tokens[2].strip_edges() : String();
+			String mime = (tokens.size() >= 3) ? tokens[2].strip_edges() : String();
 			if (!flt.is_empty() || !mime.is_empty()) {
 				if (tokens.size() >= 2) {
 					if (flt == "*.*") {
@@ -717,7 +717,7 @@ Error FreeDesktopPortalDesktop::file_dialog_show(DisplayServer::WindowID p_windo
 
 	String dbus_unique_name = String::utf8(dbus_bus_get_unique_name(monitor_connection));
 	String token = String::hex_encode_buffer(uuid, 64);
-	String path = vformat("/org/freedesktop/portal/desktop/request/%s/%s", dbus_unique_name.replace(".", "_").remove_char(':'), token);
+	String path = vformat("/org/freedesktop/portal/desktop/request/%s/%s", dbus_unique_name.replace_char('.', '_').remove_char(':'), token);
 
 	fd.path = path;
 	fd.filter = vformat("type='signal',sender='org.freedesktop.portal.Desktop',path='%s',interface='org.freedesktop.portal.Request',member='Response',destination='%s'", path, dbus_unique_name);

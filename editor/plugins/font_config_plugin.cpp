@@ -146,7 +146,6 @@ bool EditorPropertyFontOTObject::_property_get_revert(const StringName &p_name, 
 
 void EditorPropertyFontMetaOverride::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_ENTER_TREE:
 		case NOTIFICATION_THEME_CHANGED: {
 			if (button_add) {
 				button_add->set_button_icon(get_editor_theme_icon(SNAME("Add")));
@@ -478,7 +477,7 @@ void EditorPropertyOTVariation::update_property() {
 			String name = TS->tag_to_name(name_tag);
 			String name_cap;
 			{
-				String aux = name.replace("_", " ").strip_edges();
+				String aux = name.replace_char('_', ' ').strip_edges();
 				for (int j = 0; j < aux.get_slice_count(" "); j++) {
 					String slice = aux.get_slicec(' ', j);
 					if (slice.length() > 0) {
@@ -552,7 +551,6 @@ EditorPropertyOTVariation::EditorPropertyOTVariation() {
 
 void EditorPropertyOTFeatures::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_ENTER_TREE:
 		case NOTIFICATION_THEME_CHANGED: {
 			if (button_add) {
 				button_add->set_button_icon(get_editor_theme_icon(SNAME("Add")));

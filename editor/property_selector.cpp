@@ -81,7 +81,7 @@ void PropertySelector::_update_search() {
 	TreeItem *root = search_options->create_item();
 
 	// Allow using spaces in place of underscores in the search string (makes the search more fault-tolerant).
-	const String search_text = search_box->get_text().replace(" ", "_");
+	const String search_text = search_box->get_text().replace_char(' ', '_');
 
 	if (properties) {
 		List<PropertyInfo> props;
@@ -287,7 +287,15 @@ void PropertySelector::_update_search() {
 				}
 			}
 
+			if (mi.flags & METHOD_FLAG_VARARG) {
+				desc += mi.arguments.is_empty() ? "..." : ", ...";
+			}
+
 			desc += ")";
+
+			if (mi.flags & METHOD_FLAG_VARARG) {
+				desc += " vararg";
+			}
 
 			if (mi.flags & METHOD_FLAG_CONST) {
 				desc += " const";

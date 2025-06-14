@@ -252,10 +252,12 @@ private:
 	bool key_scale = false;
 
 	bool pan_pressed = false;
-	Vector2 temp_pivot = Vector2(INFINITY, INFINITY);
+	Vector2 temp_pivot = Vector2(Math::INF, Math::INF);
 
 	bool ruler_tool_active = false;
 	Point2 ruler_tool_origin;
+	real_t ruler_width_scaled = 16.0;
+	int ruler_font_size = 8;
 	Point2 node_create_position;
 
 	MenuOption last_option;
@@ -366,6 +368,7 @@ private:
 	Transform2D original_transform;
 
 	Point2 box_selecting_to;
+	CursorShape cursor_shape_override = CURSOR_ARROW;
 
 	Ref<StyleBoxTexture> select_sb;
 	Ref<Texture2D> select_handle;
@@ -582,6 +585,7 @@ public:
 	void focus_selection();
 	void center_at(const Point2 &p_pos);
 
+	void set_cursor_shape_override(CursorShape p_shape = CURSOR_ARROW);
 	virtual CursorShape get_cursor_shape(const Point2 &p_pos) const override;
 
 	ThemePreviewMode get_theme_preview() const { return theme_preview; }

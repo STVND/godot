@@ -171,7 +171,7 @@ void TextureRegionEditor::_texture_overlay_draw() {
 		int next = (i + 1) % 4;
 
 		Vector2 ofs = ((endpoints[i] - endpoints[prev]).normalized() + ((endpoints[i] - endpoints[next]).normalized())).normalized();
-		ofs *= Math_SQRT2 * (select_handle->get_size().width / 2);
+		ofs *= Math::SQRT2 * (select_handle->get_size().width / 2);
 
 		texture_overlay->draw_line(endpoints[i] - draw_ofs * draw_zoom, endpoints[next] - draw_ofs * draw_zoom, color, 2);
 
@@ -818,11 +818,11 @@ void TextureRegionEditor::_update_autoslice() {
 void TextureRegionEditor::_notification(int p_what) {
 	switch (p_what) {
 		case EditorSettings::NOTIFICATION_EDITOR_SETTINGS_CHANGED: {
-			if (!EditorSettings::get_singleton()->check_changed_settings_in_group("editors/panning")) {
-				break;
+			if (EditorSettings::get_singleton()->check_changed_settings_in_group("editors/panning")) {
+				panner->setup((ViewPanner::ControlScheme)EDITOR_GET("editors/panning/sub_editors_panning_scheme").operator int(), ED_GET_SHORTCUT("canvas_item_editor/pan_view"), bool(EDITOR_GET("editors/panning/simple_panning")));
+				panner->setup_warped_panning(get_viewport(), EDITOR_GET("editors/panning/warped_mouse_panning"));
 			}
-			[[fallthrough]];
-		}
+		} break;
 
 		case NOTIFICATION_ENTER_TREE: {
 			get_tree()->connect("node_removed", callable_mp(this, &TextureRegionEditor::_node_removed));

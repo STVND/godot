@@ -134,7 +134,6 @@ private:
 	WindowInitialPosition initial_position = WINDOW_INITIAL_POSITION_ABSOLUTE;
 	bool force_native = false;
 
-	bool use_font_oversampling = false;
 	bool transient = false;
 	bool transient_to_focused = false;
 	bool exclusive = false;
@@ -159,6 +158,8 @@ private:
 	RID accessibility_title_element;
 	RID accessibility_announcement_element;
 	String announcement;
+	String accessibility_name;
+	String accessibility_description;
 
 	void _make_window();
 	void _clear_window();
@@ -256,6 +257,7 @@ private:
 	static int root_layout_direction;
 
 protected:
+	virtual void _pre_popup() {} // Called after "about_to_popup", but before window is shown.
 	virtual Rect2i _popup_adjust_rect() const { return Rect2i(); }
 	virtual void _post_popup() {}
 
@@ -385,9 +387,6 @@ public:
 	void set_content_scale_factor(real_t p_factor);
 	real_t get_content_scale_factor() const;
 
-	void set_use_font_oversampling(bool p_oversampling);
-	bool is_using_font_oversampling() const;
-
 	void set_mouse_passthrough_polygon(const Vector<Vector2> &p_region);
 	Vector<Vector2> get_mouse_passthrough_polygon() const;
 
@@ -424,6 +423,12 @@ public:
 
 	Rect2i get_usable_parent_rect() const;
 
+	void set_accessibility_name(const String &p_name);
+	String get_accessibility_name() const;
+
+	void set_accessibility_description(const String &p_description);
+	String get_accessibility_description() const;
+
 	void accessibility_announcement(const String &p_announcement);
 
 	// Internationalization.
@@ -433,6 +438,9 @@ public:
 	bool is_layout_rtl() const;
 
 #ifndef DISABLE_DEPRECATED
+	void set_use_font_oversampling(bool p_oversampling);
+	bool is_using_font_oversampling() const;
+
 	void set_auto_translate(bool p_enable);
 	bool is_auto_translating() const;
 #endif

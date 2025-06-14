@@ -62,7 +62,7 @@ void MaterialEditor::gui_input(const Ref<InputEvent> &p_event) {
 			const real_t limit = Math::deg_to_rad(80.0);
 			rot = rot.clampf(-limit, limit);
 		} else {
-			rot.x = CLAMP(rot.x, -Math_PI / 2, Math_PI / 2);
+			rot.x = CLAMP(rot.x, -Math::PI / 2, Math::PI / 2);
 		}
 		_update_rotation();
 		_store_rotation_metadata();
@@ -230,6 +230,7 @@ MaterialEditor::MaterialEditor() {
 	layout_error->set_anchors_and_offsets_preset(PRESET_FULL_RECT);
 
 	error_label = memnew(Label);
+	error_label->set_focus_mode(FOCUS_ACCESSIBILITY);
 	error_label->set_text(TTR("Preview is not available for this shader mode."));
 	error_label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
 	error_label->set_vertical_alignment(VERTICAL_ALIGNMENT_CENTER);

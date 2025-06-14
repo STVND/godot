@@ -1104,7 +1104,7 @@ void SpriteFramesEditor::_animation_name_edited() {
 		new_name = "new_animation";
 	}
 
-	new_name = new_name.replace("/", "_").replace(",", " ");
+	new_name = new_name.replace_char('/', '_').replace_char(',', ' ');
 
 	String name = new_name;
 	int counter = 0;
@@ -1294,6 +1294,10 @@ void SpriteFramesEditor::_animation_speed_resized() {
 }
 
 void SpriteFramesEditor::_animation_speed_changed(double p_value) {
+	if (frames.is_null()) {
+		return;
+	}
+
 	if (updating) {
 		return;
 	}
@@ -1374,6 +1378,10 @@ void SpriteFramesEditor::_frame_list_item_selected(int p_index, bool p_selected)
 }
 
 void SpriteFramesEditor::_frame_duration_changed(double p_value) {
+	if (frames.is_null()) {
+		return;
+	}
+
 	if (updating) {
 		return;
 	}
@@ -1654,7 +1662,7 @@ Variant SpriteFramesEditor::get_drag_data_fw(const Point2 &p_point, Control *p_f
 	}
 
 	int idx = -1;
-	if (p_point == Vector2(INFINITY, INFINITY)) {
+	if (p_point == Vector2(Math::INF, Math::INF)) {
 		if (frame_list->is_anything_selected()) {
 			idx = frame_list->get_selected_items()[0];
 		}
@@ -1736,7 +1744,7 @@ void SpriteFramesEditor::drop_data_fw(const Point2 &p_point, const Variant &p_da
 	}
 
 	int at_pos = -1;
-	if (p_point == Vector2(INFINITY, INFINITY)) {
+	if (p_point == Vector2(Math::INF, Math::INF)) {
 		if (frame_list->is_anything_selected()) {
 			at_pos = frame_list->get_selected_items()[0];
 		}
@@ -2037,6 +2045,7 @@ SpriteFramesEditor::SpriteFramesEditor() {
 	delete_anim->set_shortcut(ED_SHORTCUT("sprite_frames/delete_animation", TTRC("Delete Animation"), Key::KEY_DELETE));
 
 	missing_anim_label = memnew(Label);
+	missing_anim_label->set_focus_mode(FOCUS_ACCESSIBILITY);
 	missing_anim_label->set_text(TTR("This resource does not have any animations."));
 	missing_anim_label->set_h_size_flags(SIZE_EXPAND_FILL);
 	missing_anim_label->set_v_size_flags(SIZE_EXPAND_FILL);
@@ -2362,7 +2371,7 @@ SpriteFramesEditor::SpriteFramesEditor() {
 
 	split_sheet_zoom_out = memnew(Button);
 	split_sheet_zoom_out->set_theme_type_variation(SceneStringName(FlatButton));
-	split_sheet_zoom_out->set_focus_mode(FOCUS_NONE);
+	split_sheet_zoom_out->set_focus_mode(FOCUS_ACCESSIBILITY);
 	split_sheet_zoom_out->set_tooltip_text(TTR("Zoom Out"));
 	split_sheet_zoom_out->set_accessibility_name(TTRC("Zoom Out"));
 	split_sheet_zoom_out->connect(SceneStringName(pressed), callable_mp(this, &SpriteFramesEditor::_sheet_zoom_out));
@@ -2370,7 +2379,7 @@ SpriteFramesEditor::SpriteFramesEditor() {
 
 	split_sheet_zoom_reset = memnew(Button);
 	split_sheet_zoom_reset->set_theme_type_variation(SceneStringName(FlatButton));
-	split_sheet_zoom_reset->set_focus_mode(FOCUS_NONE);
+	split_sheet_zoom_reset->set_focus_mode(FOCUS_ACCESSIBILITY);
 	split_sheet_zoom_reset->set_tooltip_text(TTR("Zoom Reset"));
 	split_sheet_zoom_reset->set_accessibility_name(TTRC("Reset Zoom"));
 	split_sheet_zoom_reset->connect(SceneStringName(pressed), callable_mp(this, &SpriteFramesEditor::_sheet_zoom_reset));
@@ -2378,7 +2387,7 @@ SpriteFramesEditor::SpriteFramesEditor() {
 
 	split_sheet_zoom_in = memnew(Button);
 	split_sheet_zoom_in->set_theme_type_variation(SceneStringName(FlatButton));
-	split_sheet_zoom_in->set_focus_mode(FOCUS_NONE);
+	split_sheet_zoom_in->set_focus_mode(FOCUS_ACCESSIBILITY);
 	split_sheet_zoom_in->set_tooltip_text(TTR("Zoom In"));
 	split_sheet_zoom_in->set_accessibility_name(TTRC("Zoom In"));
 	split_sheet_zoom_in->connect(SceneStringName(pressed), callable_mp(this, &SpriteFramesEditor::_sheet_zoom_in));
