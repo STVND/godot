@@ -42,6 +42,7 @@ class PhysicsMaterial : public Resource {
 	bool rough = false;
 	real_t bounce = 0.0;
 	bool absorbent = false;
+	
 
 protected:
 	static void _bind_methods();

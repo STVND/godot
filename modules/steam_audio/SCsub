@@ -1,0 +1,46 @@
+Import("env")
+Import("env_modules")
+
+env_spatial_audio = env_modules.Clone()
+
+env_spatial_audio.add_source_files("*.cpp")
+
+env_spatial_audio.Append(CPPPATH=["#scene/steam_audio/steamaudio/include"])
+
+# --- Platform-specific linking ---
+
+if env["platform"] == "windows":
+    if env["arch"] == "x86_64":
+        env_spatial_audio.Append(LIBPATH=["#scene/steam_audio/steamaudio/lib/windows-x64"])
+        env_spatial_audio.install_as_dll("#bin/phonon.dll", "#scene/steam_audio/steamaudio/lib/windows-x64/phonon.dll")
+    else:
+        env_spatial_audio.Append(LIBPATH=["#scene/steam_audio/steamaudio/lib/windows-x86"])
+        env_spatial_audio.install_as_dll("#bin/phonon.dll", "#scene/steam_audio/steamaudio/lib/windows-x86/phonon.dll")
+    env_spatial_audio.Append(LIBS=["phonon"])
+
+elif env["platform"] == "linux":
+    if env["arch"] == "x86_64":
+        env_spatial_audio.Append(LIBPATH=["#scene/steam_audio/steamaudio/lib/linux-x64"])
+        env_spatial_audio.Install("#bin", "#scene/steam_audio/steamaudio/lib/linux-x64/libphonon.so")
+    else:
+        env_spatial_audio.Append(LIBPATH=["#scene/steam_audio/steamaudio/lib/linux-x86"])
+        env_spatial_audio.Install("#bin", "#scene/steam_audio/steamaudio/lib/linux-x86/libphonon.so")
+    env_spatial_audio.Append(LIBS=["phonon"])
+    env_spatial_audio.Append(RPATH=[env.Dir("#bin").abspath])
+
+elif env["platform"] == "macos":
+    env_spatial_audio.Append(LIBPATH=["#scene/steam_audio/steamaudio/lib/osx"])
+    env_spatial_audio.Install("#bin", "#scene/steam_audio/steamaudio/lib/osx/libphonon.dylib")
+    env_spatial_audio.Append(LIBS=["phonon"])
+    env_spatial_audio.Append(RPATH=[env.Dir("#bin").abspath])
+
+elif env["platform"] == "android":
+    if env["arch"] == "armv7":
+        env_spatial_audio.Append(LIBPATH=["#scene/steam_audio/steamaudio/lib/android-armv7"])
+    elif env["arch"] == "arm64v8":
+        env_spatial_audio.Append(LIBPATH=["#scene/steam_audio/steamaudio/lib/android-arm64"])
+    env_spatial_audio.Append(LIBS=["phonon"])
+
+elif env["platform"] == "ios":
+    env_spatial_audio.Append(LIBPATH=["#scene/steam_audio/steamaudio/lib/ios"])
+    env_spatial_audio.Append(LIBS=["phonon"])
