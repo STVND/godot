@@ -790,6 +790,9 @@
 		<constant name="DIFFUSE_TOON" value="3" enum="DiffuseMode">
 			Uses a hard cut for lighting, with smoothing affected by roughness.
 		</constant>
+		<constant name="DIFFUSE_CALLISTO" value="4" enum="DiffuseMode">
+			Partial implementation of BRDF.
+		</constant>
 		<constant name="SPECULAR_SCHLICK_GGX" value="0" enum="SpecularMode">
 			Default specular blob.
 			[b]Note:[/b] Forward+ uses multiscattering for more accurate reflections, although the impact of multiscattering is more noticeable on rough metallic surfaces than on smooth, non-metallic surfaces.

@@ -166,7 +166,7 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 	// We skip checking on attenuation on directional lights to avoid a branch that is not as beneficial for directional lights as the other ones.
 	if (is_directional || attenuation > HALF_FLT_MIN) {
 		half cNdotL = max(NdotL, half(0.0));
-#if defined(DIFFUSE_BURLEY) || defined(SPECULAR_SCHLICK_GGX) || defined(LIGHT_CLEARCOAT_USED)
+#if defined(DIFFUSE_BURLEY) || defined(SPECULAR_SCHLICK_GGX) || defined(LIGHT_CLEARCOAT_USED) || defined(DIFFUSE_CALLISTO)
 		hvec3 H = normalize(V + L);
 		half cLdotH = clamp(A + dot(L, H), half(0.0), half(1.0));
 #endif
@@ -206,6 +206,10 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 				half FdV = half(1.0) + FD90_minus_1 * SchlickFresnel(cNdotV);
 				half FdL = half(1.0) + FD90_minus_1 * SchlickFresnel(cNdotL);
 				diffuse_brdf_NL = half(1.0 / M_PI) * FdV * FdL * cNdotL;
+			}
+#elif defined(DIFFUSE_CALLISTO)
+			{
+				diffuse_brdf_NL = cNdotL * half(1.0 / M_PI);
 			}
 #else
 			// lambert

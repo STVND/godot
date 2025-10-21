@@ -837,6 +837,9 @@ void BaseMaterial3D::_update_shader() {
 		case DIFFUSE_TOON:
 			code += ", diffuse_toon";
 			break;
+		case DIFFUSE_CALLISTO:
+			code += ", diffuse_callisto";
+			break;
 		case DIFFUSE_MAX:
 			break; // Internal value, skip.
 	}
@@ -3880,6 +3883,7 @@ void BaseMaterial3D::_bind_methods() {
 	BIND_ENUM_CONSTANT(DIFFUSE_LAMBERT);
 	BIND_ENUM_CONSTANT(DIFFUSE_LAMBERT_WRAP);
 	BIND_ENUM_CONSTANT(DIFFUSE_TOON);
+	BIND_ENUM_CONSTANT(DIFFUSE_CALLISTO);
 
 	BIND_ENUM_CONSTANT(SPECULAR_SCHLICK_GGX);
 	BIND_ENUM_CONSTANT(SPECULAR_TOON);
