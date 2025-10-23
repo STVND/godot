@@ -87,6 +87,9 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 #ifdef LIGHT_ANISOTROPY_USED
 		hvec3 B, hvec3 T, half anisotropy,
 #endif
+#ifdef DIFFUSE_CALLISTO
+		half smooth_terminator, half terminator_length,
+#endif
 		inout hvec3 diffuse_light, inout hvec3 specular_light) {
 #if defined(LIGHT_CODE_USED)
 	// Light is written by the user shader.
@@ -121,8 +124,6 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 	vec3 backlight_highp = vec3(backlight);
 #endif
 	float roughness_highp = float(roughness);
-	float smooth_terminator_highp = float(smooth_terminator);
-	float terminator_length_highp = float(terminator_length);
 	float metallic_highp = float(metallic);
 	vec3 albedo_highp = vec3(albedo);
 	float alpha_highp = float(alpha);
@@ -218,14 +219,18 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 				half FdL = half(1.0) + FD90_minus_1 * SchlickFresnel(cNdotL);
 				diffuse_brdf_NL = half(1.0 / M_PI) * FdV * FdL * cNdotL;
 			}
+			
 #elif defined(DIFFUSE_CALLISTO)
 			{
-				diffuse_brdf_NL = cNdotL * half(1.0 / M_PI);
+				half FD90_minus_1 = half(2.0) * cLdotH * cLdotH * roughness - half(0.5);
+				half FdV = half(1.0) + FD90_minus_1 * SchlickFresnel(cNdotV);
+				half FdL = half(1.0) + FD90_minus_1 * SchlickFresnel(cNdotL);
+				diffuse_brdf_NL = half(1.0 / M_PI) * FdV * FdL * cNdotL;
 				
 				half cNdotH = clamp(A + dot(N, H), half(0.0), half(1.0));
-				half c_2 = calculate_smooth_terminator(half(0.0), half(0.5), cNdotL, cLdotH, cNdotH);
-				diffuse_light *= c_2;
-				specular_light *= c_2;
+				half c_2 = calculate_smooth_terminator(half(smooth_terminator), half(terminator_length), cNdotL, cLdotH, cNdotH);
+
+				diffuse_brdf_NL *= c_2;
 			}
 #else
 			// lambert
@@ -471,6 +476,9 @@ void light_process_omni(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 #endif
 #ifdef LIGHT_ANISOTROPY_USED
 		hvec3 binormal, hvec3 tangent, half anisotropy,
+#endif
+#ifdef DIFFUSE_CALLISTO
+		half smooth_terminator, half terminator_length,
 #endif
 		inout hvec3 diffuse_light, inout hvec3 specular_light) {
 
@@ -735,6 +743,9 @@ void light_process_omni(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 #ifdef LIGHT_ANISOTROPY_USED
 			binormal, tangent, anisotropy,
 #endif
+#ifdef DIFFUSE_CALLISTO
+			smooth_terminator, terminator_length,
+#endif
 			diffuse_light,
 			specular_light);
 }
@@ -768,6 +779,9 @@ void light_process_spot(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 #endif
 #ifdef LIGHT_ANISOTROPY_USED
 		hvec3 binormal, hvec3 tangent, half anisotropy,
+#endif
+#ifdef DIFFUSE_CALLISTO
+		half smooth_terminator, half terminator_length,
 #endif
 		inout hvec3 diffuse_light,
 		inout hvec3 specular_light) {
@@ -936,6 +950,10 @@ void light_process_spot(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 #endif
 #ifdef LIGHT_ANISOTROPY_USED
 			binormal, tangent, anisotropy,
+#endif
+#ifdef DIFFUSE_CALLISTO
+			smooth_terminator,
+			terminator_length,
 #endif
 			diffuse_light, specular_light);
 }

@@ -2059,6 +2059,10 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 					binormal, tangent, anisotropy,
 #endif
+#ifdef DIFFUSE_CALLISTO
+					smooth_terminator,
+					terminator_length,
+#endif
 					diffuse_light,
 					direct_specular_light);
 		}
@@ -2095,6 +2099,9 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 				binormal, tangent, anisotropy,
 #endif
+#ifdef DIFFUSE_CALLISTO
+				smooth_terminator, terminator_length,
+#endif
 				diffuse_light, direct_specular_light);
 	}
 
@@ -2126,6 +2133,9 @@ void main() {
 #endif // LIGHT_CLEARCOAT_USED
 #ifdef LIGHT_ANISOTROPY_USED
 				binormal, tangent, anisotropy,
+#endif
+#ifdef DIFFUSE_CALLISTO
+				smooth_terminator, terminator_length,
 #endif
 				diffuse_light, direct_specular_light);
 	}
