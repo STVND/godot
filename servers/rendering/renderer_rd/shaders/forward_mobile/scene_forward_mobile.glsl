@@ -1103,6 +1103,8 @@ void main() {
 	float specular_highp = 0.5;
 	vec3 emission_highp = vec3(0.0);
 	float roughness_highp = 1.0;
+	float smooth_terminator_highp = 0.0;
+	float terminator_length_highp = 0.5;
 	float rim_highp = 0.0;
 	float rim_tint_highp = 0.0;
 	float clearcoat_highp = 0.0;
@@ -1226,6 +1228,8 @@ void main() {
 	half specular = half(specular_highp);
 	hvec3 emission = hvec3(emission_highp);
 	half roughness = half(roughness_highp);
+	half smooth_terminator = half(smooth_terminator_highp);
+	half terminator_length = half(terminator_length_highp);
 	half rim = half(rim_highp);
 	half rim_tint = half(rim_tint_highp);
 	half clearcoat = half(clearcoat_highp);

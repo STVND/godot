@@ -52,6 +52,15 @@ half SchlickFresnel(half u) {
 	return m2 * m2 * m; // pow(m,5)
 }
 
+half calculate_smooth_terminator(half half_terminator, half half_length, half cNdotL, half cLdotH, half cNdotH) {
+	half a = 1.0 - pow(1.0 - cLdotH, 3.0);
+	half b = 1.0 - pow(1.0 - cNdotH, 3.0);
+	half edge = a * b * half_length;
+	half s = smoothstep(0.0, edge, cNdotL);
+
+	return mix(half(1.0), s, a * b * half_terminator);
+}
+
 hvec3 F0(half metallic, half specular, hvec3 albedo) {
 	half dielectric = half(0.16) * specular * specular;
 	// use albedo * metallic as colored specular reflectance at 0 angle for metallic materials;
@@ -112,6 +121,8 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 	vec3 backlight_highp = vec3(backlight);
 #endif
 	float roughness_highp = float(roughness);
+	float smooth_terminator_highp = float(smooth_terminator);
+	float terminator_length_highp = float(terminator_length);
 	float metallic_highp = float(metallic);
 	vec3 albedo_highp = vec3(albedo);
 	float alpha_highp = float(alpha);
@@ -210,6 +221,11 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 #elif defined(DIFFUSE_CALLISTO)
 			{
 				diffuse_brdf_NL = cNdotL * half(1.0 / M_PI);
+				
+				half cNdotH = clamp(A + dot(N, H), half(0.0), half(1.0));
+				half c_2 = calculate_smooth_terminator(half(0.0), half(0.5), cNdotL, cLdotH, cNdotH);
+				diffuse_light *= c_2;
+				specular_light *= c_2;
 			}
 #else
 			// lambert

@@ -467,6 +467,8 @@ private:
 		StringName albedo;
 		StringName specular;
 		StringName metallic;
+		StringName smooth_terminator;
+		StringName terminator_length;
 		StringName roughness;
 		StringName emission;
 		StringName emission_energy;
@@ -541,6 +543,8 @@ private:
 	float specular = 0.0f;
 	float metallic = 0.0f;
 	float roughness = 0.0f;
+	float smooth_terminator = 0.0f;
+	float terminator_length = 0.5f;
 	Color emission;
 	float emission_energy_multiplier = 1.0f;
 	float emission_intensity = 1000.0f; // In nits, equivalent to indoor lighting.
@@ -656,6 +660,12 @@ public:
 
 	void set_roughness(float p_roughness);
 	float get_roughness() const;
+
+	void set_smooth_terminator(float p_smooth_terminator);
+	float get_smooth_terminator() const;
+
+	void set_terminator_length(float p_terminator_length);
+	float get_terminator_length() const;
 
 	void set_emission(const Color &p_emission);
 	Color get_emission() const;

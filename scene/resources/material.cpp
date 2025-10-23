@@ -592,6 +592,8 @@ void BaseMaterial3D::init_shaders() {
 	shader_names->albedo = "albedo";
 	shader_names->specular = "specular";
 	shader_names->roughness = "roughness";
+	shader_names->smooth_terminator = "smooth_terminator";
+	shader_names->terminator_length = "terminator_length";
 	shader_names->metallic = "metallic";
 	shader_names->emission = "emission";
 	shader_names->emission_energy = "emission_energy";
@@ -2169,6 +2171,24 @@ float BaseMaterial3D::get_roughness() const {
 	return roughness;
 }
 
+void BaseMaterial3D::set_smooth_terminator(float p_smooth_terminator) {
+	smooth_terminator = p_smooth_terminator;
+	_material_set_param(shader_names->smooth_terminator, p_smooth_terminator);
+}
+
+float BaseMaterial3D::get_smooth_terminator() const {
+	return smooth_terminator;
+}
+
+void BaseMaterial3D::set_terminator_length(float p_terminator_length) {
+	terminator_length = p_terminator_length;
+	_material_set_param(shader_names->terminator_length, p_terminator_length);
+}
+
+float BaseMaterial3D::get_terminator_length() const {
+	return terminator_length;
+}
+
 void BaseMaterial3D::set_metallic(float p_metallic) {
 	metallic = p_metallic;
 	_material_set_param(shader_names->metallic, p_metallic);
@@ -3369,6 +3389,12 @@ void BaseMaterial3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_roughness", "roughness"), &BaseMaterial3D::set_roughness);
 	ClassDB::bind_method(D_METHOD("get_roughness"), &BaseMaterial3D::get_roughness);
 
+	ClassDB::bind_method(D_METHOD("set_smooth_terminator", "smooth_terminator"), &BaseMaterial3D::set_smooth_terminator);
+	ClassDB::bind_method(D_METHOD("get_smooth_terminator"), &BaseMaterial3D::get_smooth_terminator);
+
+	ClassDB::bind_method(D_METHOD("set_terminator_length", "terminator_length"), &BaseMaterial3D::set_terminator_length);
+	ClassDB::bind_method(D_METHOD("get_terminator_length"), &BaseMaterial3D::get_terminator_length);
+
 	ClassDB::bind_method(D_METHOD("set_emission", "emission"), &BaseMaterial3D::set_emission);
 	ClassDB::bind_method(D_METHOD("get_emission"), &BaseMaterial3D::get_emission);
 
@@ -3590,7 +3616,7 @@ void BaseMaterial3D::_bind_methods() {
 
 	ADD_GROUP("Shading", "");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "shading_mode", PROPERTY_HINT_ENUM, "Unshaded,Per-Pixel,Per-Vertex"), "set_shading_mode", "get_shading_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "diffuse_mode", PROPERTY_HINT_ENUM, "Burley,Lambert,Lambert Wrap,Toon"), "set_diffuse_mode", "get_diffuse_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "diffuse_mode", PROPERTY_HINT_ENUM, "Burley,Lambert,Lambert Wrap,Toon,Callisto"), "set_diffuse_mode", "get_diffuse_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "specular_mode", PROPERTY_HINT_ENUM, "SchlickGGX,Toon,Disabled"), "set_specular_mode", "get_specular_mode");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "disable_ambient_light"), "set_flag", "get_flag", FLAG_DISABLE_AMBIENT_LIGHT);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "disable_fog"), "set_flag", "get_flag", FLAG_DISABLE_FOG);
@@ -3619,6 +3645,10 @@ void BaseMaterial3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "roughness", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_roughness", "get_roughness");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "roughness_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_ROUGHNESS);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "roughness_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_roughness_texture_channel", "get_roughness_texture_channel");
+
+	ADD_GROUP("Callisto", "");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "smooth_terminator", PROPERTY_HINT_RANGE, "-1,1,0.01"), "set_smooth_terminator", "get_smooth_terminator");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terminator_length", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_terminator_length", "get_terminator_length");
 
 	ADD_GROUP("Emission", "emission_");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "emission_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_feature", "get_feature", FEATURE_EMISSION);
@@ -3933,6 +3963,8 @@ BaseMaterial3D::BaseMaterial3D(bool p_orm) :
 	set_albedo(Color(1.0, 1.0, 1.0, 1.0));
 	set_specular(0.5);
 	set_roughness(1.0);
+	set_smooth_terminator(0.0);
+	set_terminator_length(0.5);
 	set_metallic(0.0);
 	set_emission(Color(0, 0, 0));
 	set_emission_energy_multiplier(1.0);

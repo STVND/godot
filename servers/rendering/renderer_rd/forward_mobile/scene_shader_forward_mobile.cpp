@@ -666,6 +666,8 @@ void SceneShaderForwardMobile::init(const String p_defines) {
 		actions.renames["METALLIC"] = "metallic_highp";
 		actions.renames["SPECULAR"] = "specular_highp";
 		actions.renames["ROUGHNESS"] = "roughness_highp";
+		actions.renames["SMOOTH_TERMINATOR"] = "smooth_terminator";
+		actions.renames["TERMINATOR_LENGTH"] = "terminator_length";
 		actions.renames["RIM"] = "rim_highp";
 		actions.renames["RIM_TINT"] = "rim_tint_highp";
 		actions.renames["CLEARCOAT"] = "clearcoat_highp";
@@ -776,6 +778,7 @@ void SceneShaderForwardMobile::init(const String p_defines) {
 
 		actions.render_mode_defines["diffuse_lambert_wrap"] = "#define DIFFUSE_LAMBERT_WRAP\n";
 		actions.render_mode_defines["diffuse_toon"] = "#define DIFFUSE_TOON\n";
+		actions.render_mode_defines["diffuse_callisto"] = "#define DIFFUSE_CALLISTO\n";
 
 		actions.render_mode_defines["sss_mode_skin"] = "#define SSS_MODE_SKIN\n";
 
@@ -836,9 +839,7 @@ void fragment() {
 )");
 		default_material = material_storage->material_allocate();
 		material_storage->material_initialize(default_material);
-		material_storage->material_set_shader(default_material, default_shader);
-
-		MaterialData *md = static_cast<MaterialData *>(material_storage->material_get_data(default_material, RendererRD::MaterialStorage::SHADER_TYPE_3D));
+		material_storage->material_set_shader(default_material, default_shader);		MaterialData *md = static_cast<MaterialData *>(material_storage->material_get_data(default_material, RendererRD::MaterialStorage::SHADER_TYPE_3D));
 		default_shader_rd = shader.version_get_shader(md->shader_data->version, (use_fp16 ? SHADER_VERSION_MAX * 2 : 0) + SHADER_VERSION_COLOR_PASS);
 
 		default_material_shader_ptr = md->shader_data;
