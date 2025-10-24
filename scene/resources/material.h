@@ -469,6 +469,7 @@ private:
 		StringName metallic;
 		StringName smooth_terminator;
 		StringName terminator_length;
+		StringName specular_falloff;
 		StringName roughness;
 		StringName emission;
 		StringName emission_energy;
@@ -545,6 +546,7 @@ private:
 	float roughness = 0.0f;
 	float smooth_terminator = 0.0f;
 	float terminator_length = 0.5f;
+	float specular_falloff = 0.5f;
 	Color emission;
 	float emission_energy_multiplier = 1.0f;
 	float emission_intensity = 1000.0f; // In nits, equivalent to indoor lighting.
@@ -667,6 +669,8 @@ public:
 	void set_terminator_length(float p_terminator_length);
 	float get_terminator_length() const;
 
+	void set_specular_falloff(float p_specular_falloff);
+	float get_specular_falloff() const;
 	void set_emission(const Color &p_emission);
 	Color get_emission() const;
 

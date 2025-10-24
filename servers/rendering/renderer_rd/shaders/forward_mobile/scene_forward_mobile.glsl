@@ -1105,6 +1105,7 @@ void main() {
 	float roughness_highp = 1.0;
 	float smooth_terminator_highp = 0.0;
 	float terminator_length_highp = 0.5;
+	float specular_falloff_highp = 0.5;
 	float rim_highp = 0.0;
 	float rim_tint_highp = 0.0;
 	float clearcoat_highp = 0.0;
@@ -1230,6 +1231,7 @@ void main() {
 	half roughness = half(roughness_highp);
 	half smooth_terminator = half(smooth_terminator_highp);
 	half terminator_length = half(terminator_length_highp);
+	half specular_falloff = half(specular_falloff_highp);
 	half rim = half(rim_highp);
 	half rim_tint = half(rim_tint_highp);
 	half clearcoat = half(clearcoat_highp);
@@ -2062,6 +2064,7 @@ void main() {
 #ifdef DIFFUSE_CALLISTO
 					smooth_terminator,
 					terminator_length,
+					specular_falloff,
 #endif
 					diffuse_light,
 					direct_specular_light);
@@ -2100,7 +2103,7 @@ void main() {
 				binormal, tangent, anisotropy,
 #endif
 #ifdef DIFFUSE_CALLISTO
-				smooth_terminator, terminator_length,
+				smooth_terminator, terminator_length, specular_falloff,
 #endif
 				diffuse_light, direct_specular_light);
 	}
@@ -2135,7 +2138,7 @@ void main() {
 				binormal, tangent, anisotropy,
 #endif
 #ifdef DIFFUSE_CALLISTO
-				smooth_terminator, terminator_length,
+				smooth_terminator, terminator_length, specular_falloff,
 #endif
 				diffuse_light, direct_specular_light);
 	}

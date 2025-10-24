@@ -1187,6 +1187,7 @@ void fragment_shader(in SceneData scene_data) {
 	float roughness_highp = 1.0;
 	float smooth_terminator_highp = 0.0;
 	float terminator_length_highp = 0.5;
+	float specular_falloff_highp = 0.5;
 	float rim = 0.0;
 	float rim_tint = 0.0;
 	float clearcoat = 0.0;
@@ -1301,6 +1302,7 @@ void fragment_shader(in SceneData scene_data) {
 	float metallic = metallic_highp;
 	float smooth_terminator = smooth_terminator_highp;
 	float terminator_length = terminator_length_highp;
+	float specular_falloff = specular_falloff_highp;
 	vec3 albedo = albedo_highp;
 	float alpha = alpha_highp;
 #ifdef NORMAL_USED
@@ -2529,6 +2531,7 @@ void fragment_shader(in SceneData scene_data) {
 #ifdef DIFFUSE_CALLISTO
 					smooth_terminator,
 					terminator_length,
+					specular_falloff,
 #endif
 					diffuse_light,
 					direct_specular_light);
@@ -2594,7 +2597,7 @@ void fragment_shader(in SceneData scene_data) {
 						binormal, tangent, anisotropy,
 #endif
 #ifdef DIFFUSE_CALLISTO
-						smooth_terminator, terminator_length,
+						smooth_terminator, terminator_length, specular_falloff,
 #endif
 						diffuse_light, direct_specular_light);
 			}
@@ -2658,7 +2661,7 @@ void fragment_shader(in SceneData scene_data) {
 						binormal, tangent, anisotropy,
 #endif
 #ifdef DIFFUSE_CALLISTO
-						smooth_terminator, terminator_length,
+						smooth_terminator, terminator_length, specular_falloff,
 #endif
 						diffuse_light, direct_specular_light);
 			}

@@ -52,6 +52,14 @@ half SchlickFresnel(half u) {
 	return m2 * m2 * m; // pow(m,5)
 }
 
+half CallistoFresnel(half u, half x) {
+	half r_ns = half(2.0) * (half(1.0) - x);
+	half m = half(1.0) - u;
+	half m_pow = pow(m, half(5.0) * r_ns);
+	half t_term = clamp(half(2.0) - r_ns, half(0.0), half(1.0));
+	return t_term * m_pow;
+}
+
 half calculate_smooth_terminator(half half_terminator, half half_length, half cNdotL, half cLdotH, half cNdotH) {
 	half a = 1.0 - pow(1.0 - cLdotH, 3.0);
 	half b = 1.0 - pow(1.0 - cNdotH, 3.0);
@@ -88,7 +96,7 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 		hvec3 B, hvec3 T, half anisotropy,
 #endif
 #ifdef DIFFUSE_CALLISTO
-		half smooth_terminator, half terminator_length,
+		half smooth_terminator, half terminator_length, half specular_falloff,
 #endif
 		inout hvec3 diffuse_light, inout hvec3 specular_light) {
 #if defined(LIGHT_CODE_USED)
@@ -278,7 +286,11 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 #endif // LIGHT_ANISOTROPY_USED
 	   // F
 #if !defined(LIGHT_CLEARCOAT_USED)
-			half cLdotH5 = SchlickFresnel(cLdotH);
+#if defined(DIFFUSE_CALLISTO)
+	half cLdotH5 = CallistoFresnel(cLdotH, specular_falloff);
+#else
+	half cLdotH5 = SchlickFresnel(cLdotH);
+#endif
 #endif
 			// Calculate Fresnel using specular occlusion term from Filament:
 			// https://google.github.io/filament/Filament.html#lighting/occlusion/specularocclusion
@@ -478,7 +490,7 @@ void light_process_omni(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 		hvec3 binormal, hvec3 tangent, half anisotropy,
 #endif
 #ifdef DIFFUSE_CALLISTO
-		half smooth_terminator, half terminator_length,
+		half smooth_terminator, half terminator_length, half specular_falloff,
 #endif
 		inout hvec3 diffuse_light, inout hvec3 specular_light) {
 
@@ -744,7 +756,7 @@ void light_process_omni(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 			binormal, tangent, anisotropy,
 #endif
 #ifdef DIFFUSE_CALLISTO
-			smooth_terminator, terminator_length,
+			smooth_terminator, terminator_length, specular_falloff,
 #endif
 			diffuse_light,
 			specular_light);
@@ -781,7 +793,7 @@ void light_process_spot(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 		hvec3 binormal, hvec3 tangent, half anisotropy,
 #endif
 #ifdef DIFFUSE_CALLISTO
-		half smooth_terminator, half terminator_length,
+		half smooth_terminator, half terminator_length, half specular_falloff,
 #endif
 		inout hvec3 diffuse_light,
 		inout hvec3 specular_light) {
@@ -954,6 +966,7 @@ void light_process_spot(uint idx, vec3 vertex, hvec3 eye_vec, hvec3 normal, vec3
 #ifdef DIFFUSE_CALLISTO
 			smooth_terminator,
 			terminator_length,
+			specular_falloff,
 #endif
 			diffuse_light, specular_light);
 }

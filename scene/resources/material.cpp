@@ -594,6 +594,7 @@ void BaseMaterial3D::init_shaders() {
 	shader_names->roughness = "roughness";
 	shader_names->smooth_terminator = "smooth_terminator";
 	shader_names->terminator_length = "terminator_length";
+	shader_names->specular_falloff = "specular_falloff";
 	shader_names->metallic = "metallic";
 	shader_names->emission = "emission";
 	shader_names->emission_energy = "emission_energy";
@@ -2189,6 +2190,15 @@ float BaseMaterial3D::get_terminator_length() const {
 	return terminator_length;
 }
 
+void BaseMaterial3D::set_specular_falloff(float p_specular_falloff) {
+	specular_falloff = p_specular_falloff;
+	_material_set_param(shader_names->specular_falloff, p_specular_falloff);
+}
+
+float BaseMaterial3D::get_specular_falloff() const {
+	return specular_falloff;
+}
+
 void BaseMaterial3D::set_metallic(float p_metallic) {
 	metallic = p_metallic;
 	_material_set_param(shader_names->metallic, p_metallic);
@@ -3395,6 +3405,9 @@ void BaseMaterial3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_terminator_length", "terminator_length"), &BaseMaterial3D::set_terminator_length);
 	ClassDB::bind_method(D_METHOD("get_terminator_length"), &BaseMaterial3D::get_terminator_length);
 
+	ClassDB::bind_method(D_METHOD("set_specular_falloff", "specular_falloff"), &BaseMaterial3D::set_specular_falloff);
+	ClassDB::bind_method(D_METHOD("get_specular_falloff"), &BaseMaterial3D::get_specular_falloff);
+
 	ClassDB::bind_method(D_METHOD("set_emission", "emission"), &BaseMaterial3D::set_emission);
 	ClassDB::bind_method(D_METHOD("get_emission"), &BaseMaterial3D::get_emission);
 
@@ -3961,6 +3974,7 @@ BaseMaterial3D::BaseMaterial3D(bool p_orm) :
 	set_roughness(1.0);
 	set_smooth_terminator(0.0);
 	set_terminator_length(0.5);
+	set_specular_falloff(0.5);
 	set_metallic(0.0);
 	set_emission(Color(0, 0, 0));
 	set_emission_energy_multiplier(1.0);
