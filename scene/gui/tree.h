@@ -150,7 +150,7 @@ private:
 	TreeItem *first_child = nullptr;
 	TreeItem *last_child = nullptr;
 
-	Vector<TreeItem *> children_cache;
+	LocalVector<TreeItem *> children_cache;
 	bool is_root = false; // For tree root.
 	Tree *tree = nullptr; // Tree (for reference).
 
@@ -169,7 +169,7 @@ private:
 		if (children_cache.is_empty()) {
 			TreeItem *c = first_child;
 			while (c) {
-				children_cache.append(c);
+				children_cache.push_back(c);
 				c = c->next;
 			}
 		}
@@ -201,7 +201,7 @@ private:
 		}
 		if (parent) {
 			if (!parent->children_cache.is_empty()) {
-				parent->children_cache.remove_at(get_index());
+				parent->children_cache.erase(this);
 			}
 			if (parent->first_child == this) {
 				parent->first_child = next;
@@ -654,6 +654,8 @@ private:
 		int parent_hl_line_margin = 0;
 		int draw_guides = 0;
 
+		int dragging_unfold_wait_msec = 500;
+
 		int scroll_border = 0;
 		int scroll_speed = 0;
 
@@ -740,6 +742,11 @@ private:
 	bool hide_folding = false;
 
 	bool enable_recursive_folding = true;
+
+	bool enable_drag_unfolding = true;
+	Timer *dropping_unfold_timer = nullptr;
+	void _on_dropping_unfold_timer_timeout();
+	void _reset_drop_mode_over();
 
 	bool enable_auto_tooltip = true;
 
@@ -891,6 +898,9 @@ public:
 
 	void set_enable_recursive_folding(bool p_enable);
 	bool is_recursive_folding_enabled() const;
+
+	void set_enable_drag_unfolding(bool p_enable);
+	bool is_drag_unfolding_enabled() const;
 
 	void set_drop_mode_flags(int p_flags);
 	int get_drop_mode_flags() const;

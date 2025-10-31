@@ -3315,6 +3315,12 @@ void EditorHelp::_notification(int p_what) {
 
 		case NOTIFICATION_THEME_CHANGED: {
 			if (is_inside_tree()) {
+				if (is_visible_in_tree()) {
+					_update_doc();
+				} else {
+					update_pending = true;
+				}
+
 				_class_desc_resized(true);
 			}
 			update_toggle_files_button();
@@ -4533,6 +4539,7 @@ EditorHelpBit::EditorHelpBit(const String &p_symbol, const String &p_prologue, b
 	content = memnew(RichTextLabel);
 	content->set_theme_type_variation("EditorHelpBitContent");
 	content->set_custom_minimum_size(Size2(640 * EDSCALE, content_min_height));
+	content->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	content->set_selection_enabled(p_allow_selection);
 	content->set_context_menu_enabled(p_allow_selection);
 	content->set_selection_modifier(callable_mp_static(_replace_nbsp_with_space));

@@ -709,6 +709,9 @@ void PopupMenu::_input_from_window_internal(const Ref<InputEvent> &p_event) {
 		if (!minimum_lifetime_timer->is_stopped()) {
 			// The mouse left the safe area, but came back again, so cancel the auto-closing.
 			minimum_lifetime_timer->stop();
+			if (PopupMenu *parent_pum = Object::cast_to<PopupMenu>(get_parent())) {
+				parent_pum->_hover_active_submenu_item();
+			}
 		}
 
 		if (mouse_over == -1 && !item_clickable_area.has_point(m->get_position())) {
@@ -765,9 +768,12 @@ void PopupMenu::_mouse_over_update(const Point2 &p_over) {
 	int id = (over < 0 || items[over].separator || items[over].disabled) ? -1 : (items[over].id >= 0 ? items[over].id : over);
 
 	if (id < 0) {
-		mouse_over = -1;
-		queue_accessibility_update();
-		control->queue_redraw();
+		// Only remove the hover if there's no open submenu, or the mouse is in an item that can't be hovered.
+		if (over >= 0 || !(mouse_over >= 0 && items[mouse_over].submenu && items[mouse_over].submenu->is_visible())) {
+			mouse_over = -1;
+			queue_accessibility_update();
+			control->queue_redraw();
+		}
 		return;
 	}
 
@@ -1018,11 +1024,12 @@ void PopupMenu::_shape_item(int p_idx) const {
 		} else {
 			items.write[p_idx].text_buf->set_direction((TextServer::Direction)items[p_idx].text_direction);
 		}
-		items.write[p_idx].text_buf->add_string(items.write[p_idx].xl_text, font, font_size, items[p_idx].language);
+		const String &lang = items[p_idx].language.is_empty() ? _get_locale() : items[p_idx].language;
+		items.write[p_idx].text_buf->add_string(items.write[p_idx].xl_text, font, font_size, lang);
 
 		items.write[p_idx].accel_text_buf->clear();
 		items.write[p_idx].accel_text_buf->set_direction(is_layout_rtl() ? TextServer::DIRECTION_RTL : TextServer::DIRECTION_LTR);
-		items.write[p_idx].accel_text_buf->add_string(_get_accel_text(items.write[p_idx]), font, font_size);
+		items.write[p_idx].accel_text_buf->add_string(_get_accel_text(items.write[p_idx]), font, font_size, lang);
 		items.write[p_idx].dirty = false;
 	}
 }
@@ -1080,6 +1087,19 @@ Rect2i PopupMenu::_popup_adjust_rect() const {
 	current.size += Vector2(panel->get_offset(SIDE_LEFT) - panel->get_offset(SIDE_RIGHT), panel->get_offset(SIDE_TOP) - panel->get_offset(SIDE_BOTTOM)) * get_content_scale_factor();
 
 	return current;
+}
+
+void PopupMenu::_hover_active_submenu_item() {
+	for (int i = 0; i < items.size(); i++) {
+		if (items[i].submenu && items[i].submenu->is_visible()) {
+			if (mouse_over != i) {
+				mouse_over = i;
+				queue_accessibility_update();
+				control->queue_redraw();
+			}
+			return;
+		}
+	}
 }
 
 void PopupMenu::add_child_notify(Node *p_child) {
@@ -1270,7 +1290,7 @@ void PopupMenu::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_WM_MOUSE_EXIT: {
-			if (mouse_over >= 0 && (!items[mouse_over].submenu || submenu_over != -1)) {
+			if (mouse_over >= 0 && (!items[mouse_over].submenu || !items[mouse_over].submenu->is_visible())) {
 				mouse_over = -1;
 				queue_accessibility_update();
 				control->queue_redraw();
@@ -3229,14 +3249,19 @@ void PopupMenu::_pre_popup() {
 	}
 	real_t popup_scale = MIN(scale.x, scale.y);
 	set_content_scale_factor(popup_scale);
-	Size2 minsize = get_contents_minimum_size() * popup_scale;
-	minsize.height = Math::ceil(minsize.height); // Ensures enough height at fractional content scales to prevent the v_scroll_bar from showing.
-	real_t max_h = get_max_size().height;
-	if (max_h > 0) {
-		minsize.height = MIN(minsize.height, max_h);
+	if (is_wrapping_controls()) {
+		Size2 minsize = get_contents_minimum_size() * popup_scale;
+		Size2 maxsize = get_max_size();
+		if (maxsize.height > 0) {
+			minsize.height = MIN(minsize.height, maxsize.height);
+		}
+		if (maxsize.width > 0) {
+			minsize.width = MIN(minsize.width, maxsize.width);
+		}
+		minsize.height = Math::ceil(minsize.height); // Ensures enough height at fractional content scales to prevent the v_scroll_bar from showing.
+		set_min_size(minsize); // `height` is truncated here by the cast to Size2i for Window.min_size.
+		reset_size(); // Shrinkwraps to min size.
 	}
-	set_min_size(minsize); // `height` is truncated here by the cast to Size2i for Window.min_size.
-	reset_size(); // Shrinkwraps to min size.
 }
 
 void PopupMenu::set_visible(bool p_visible) {

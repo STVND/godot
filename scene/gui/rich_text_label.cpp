@@ -2303,6 +2303,11 @@ RID RichTextLabel::get_focused_accessibility_element() const {
 	return get_accessibility_element();
 }
 
+void RichTextLabel::_prepare_scroll_anchor() {
+	scroll_w = vscroll->get_combined_minimum_size().width;
+	vscroll->set_anchor_and_offset(SIDE_LEFT, ANCHOR_END, -scroll_w);
+}
+
 void RichTextLabel::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ACCESSIBILITY_INVALIDATE: {
@@ -2415,6 +2420,10 @@ void RichTextLabel::_notification(int p_what) {
 			_invalidate_accessibility();
 			queue_accessibility_update();
 			queue_redraw();
+		} break;
+
+		case NOTIFICATION_READY: {
+			_prepare_scroll_anchor();
 		} break;
 
 		case NOTIFICATION_THEME_CHANGED: {
@@ -2588,6 +2597,7 @@ void RichTextLabel::_notification(int p_what) {
 				from_line++;
 			}
 			if (scroll_follow_visible_characters && scroll_active) {
+				scroll_visible = follow_vc_pos > 0;
 				vscroll->set_visible(follow_vc_pos > 0);
 			}
 			if (has_focus() && get_tree()->is_accessibility_enabled()) {
@@ -3461,21 +3471,20 @@ TextServer::StructuredTextParser RichTextLabel::_find_stt(Item *p_item) {
 }
 
 String RichTextLabel::_find_language(Item *p_item) {
-	Item *item = p_item;
-
-	while (item) {
+	String lang = language;
+	for (Item *item = p_item; item; item = item->parent) {
 		if (item->type == ITEM_LANGUAGE) {
 			ItemLanguage *p = static_cast<ItemLanguage *>(item);
-			return p->language;
-		} else if (item->type == ITEM_PARAGRAPH) {
-			ItemParagraph *p = static_cast<ItemParagraph *>(item);
-			return p->language;
+			lang = p->language;
+			break;
 		}
-
-		item = item->parent;
+		if (item->type == ITEM_PARAGRAPH) {
+			ItemParagraph *p = static_cast<ItemParagraph *>(item);
+			lang = p->language;
+			break;
+		}
 	}
-
-	return language;
+	return lang.is_empty() ? _get_locale() : lang;
 }
 
 Color RichTextLabel::_find_color(Item *p_item, const Color &p_default_color) {
@@ -3727,9 +3736,8 @@ _FORCE_INLINE_ float RichTextLabel::_update_scroll_exceeds(float p_total_height,
 	if (exceeds != scroll_visible) {
 		if (exceeds) {
 			scroll_visible = true;
-			scroll_w = vscroll->get_combined_minimum_size().width;
+			_prepare_scroll_anchor();
 			vscroll->show();
-			vscroll->set_anchor_and_offset(SIDE_LEFT, ANCHOR_END, -scroll_w);
 		} else {
 			scroll_visible = false;
 			scroll_w = 0;

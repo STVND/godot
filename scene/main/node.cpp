@@ -33,7 +33,10 @@
 
 STATIC_ASSERT_INCOMPLETE_TYPE(class, Mesh);
 STATIC_ASSERT_INCOMPLETE_TYPE(class, RenderingServer);
+STATIC_ASSERT_INCOMPLETE_TYPE(class, DisplayServer);
 STATIC_ASSERT_INCOMPLETE_TYPE(class, Shader);
+STATIC_ASSERT_INCOMPLETE_TYPE(class, OS);
+STATIC_ASSERT_INCOMPLETE_TYPE(class, Engine);
 
 #include "core/config/project_settings.h"
 #include "core/io/resource_loader.h"
@@ -2776,27 +2779,6 @@ void Node::get_storable_properties(HashSet<StringName> &r_storable_properties) c
 	}
 }
 
-String Node::to_string() {
-	// Keep this method in sync with `Object::to_string`.
-	ERR_THREAD_GUARD_V(String());
-	if (get_script_instance()) {
-		bool valid;
-		String ret = get_script_instance()->to_string(&valid);
-		if (valid) {
-			return ret;
-		}
-	}
-	if (_get_extension() && _get_extension()->to_string) {
-		String ret;
-		GDExtensionBool is_valid;
-		_get_extension()->to_string(_get_extension_instance(), &is_valid, &ret);
-		if (is_valid) {
-			return ret;
-		}
-	}
-	return (get_name() ? String(get_name()) + ":" : "") + Object::to_string();
-}
-
 void Node::set_scene_instance_state(const Ref<SceneState> &p_state) {
 	ERR_THREAD_GUARD
 	data.instance_state = p_state;
@@ -3612,6 +3594,11 @@ void Node::_validate_property(PropertyInfo &p_property) const {
 	}
 }
 
+String Node::_to_string() {
+	ERR_THREAD_GUARD_V(String());
+	return (get_name() ? String(get_name()) + ":" : "") + Object::_to_string();
+}
+
 void Node::input(const Ref<InputEvent> &p_event) {
 }
 
@@ -4204,6 +4191,11 @@ int Node::get_persistent_signal_connection_count() const {
 	return Object::get_persistent_signal_connection_count();
 }
 
+uint32_t Node::get_signal_connection_flags(const StringName &p_signal, const Callable &p_callable) const {
+	ERR_THREAD_GUARD_V(0);
+	return Object::get_signal_connection_flags(p_signal, p_callable);
+}
+
 void Node::get_signals_connected_to_this(List<Connection> *p_connections) const {
 	ERR_THREAD_GUARD;
 	Object::get_signals_connected_to_this(p_connections);
@@ -4227,14 +4219,13 @@ void Node::disconnect(const StringName &p_signal, const Callable &p_callable) {
 
 #ifdef TOOLS_ENABLED
 	// Already under thread guard, don't check again.
-	int old_connection_count = Object::get_persistent_signal_connection_count();
+	uint32_t connection_flags = Object::get_signal_connection_flags(p_signal, p_callable);
 #endif
 
-	Object::disconnect(p_signal, p_callable);
+	[[maybe_unused]] bool changed = Object::_disconnect(p_signal, p_callable);
 
 #ifdef TOOLS_ENABLED
-	int new_connection_count = Object::get_persistent_signal_connection_count();
-	if (old_connection_count != new_connection_count) {
+	if (changed && connection_flags & CONNECT_PERSIST) {
 		_emit_editor_state_changed();
 	}
 #endif
