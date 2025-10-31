@@ -1194,9 +1194,16 @@ uniform vec2 heightmap_flip;
 		code += vformat(R"(
 uniform sampler2D texture_smooth_terminator : hint_default_white, %s;
 uniform float smooth_terminator : hint_range(0.0, 1.0, 0.01);
+)",
+				texfilter_str);
+
+		code += vformat(R"(
 uniform sampler2D texture_terminator_length : hint_default_white, %s;
 uniform float terminator_length : hint_range(0.0, 1.0, 0.01);
-uniform sampler2D texture_smooth_terminator : hint_default_white, %s;
+)",
+				texfilter_str);
+		code += vformat(R"(
+uniform sampler2D texture_specular_falloff : hint_default_white, %s;
 uniform float specular_falloff : hint_range(0.0, 1.0, 0.01);
 )",
 				texfilter_str);
@@ -2001,6 +2008,24 @@ void fragment() {)";
 		code += R"(	SSS_TRANSMITTANCE_DEPTH = transmittance_depth;
 	SSS_TRANSMITTANCE_BOOST = transmittance_boost;
 )";
+	}
+
+	if (features[FEATURE_CALLISTO]) {
+		code += R"(
+		// Callisto: Enabled
+)";
+		if (flags[FLAG_UV1_USE_TRIPLANAR]) {
+			code += "	float smooth_terminator_tex = triplanar_texture(texture_smooth_terminator, uv1_power_normal, uv1_triplanar_pos).r;\n";
+			code += " 	float terminator_length_tex = triplanar_texture(texture_terminator_length, uv1_power_normal, uv1_triplanar_pos).r;\n";
+			code += " 	float specular_falloff_tex = triplanar_texture(texture_specular_falloff, uv1_power_normal, uv1_triplanar_pos).r;\n";
+		} else {
+			code += "	float smooth_terminator_tex = texture(texture_smooth_terminator, base_uv).r;\n";
+			code += "	float terminator_length_tex = texture(texture_terminator_length, base_uv).r;\n";
+			code += "	float specular_falloff_tex = texture(texture_specular_falloff, base_uv).r;\n";
+		}
+		code += "	SMOOTH_TERMINATOR = smooth_terminator * smooth_terminator_tex;\n";
+		code += "	TERMINATOR_LENGTH = terminator_length * terminator_length_tex;\n";
+		code += "	SPECULAR_FALLOFF = specular_falloff * specular_falloff_tex;\n";
 	}
 
 	if (features[FEATURE_BACKLIGHT]) {
@@ -3683,7 +3708,7 @@ void BaseMaterial3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "smooth_terminator", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_smooth_terminator", "get_smooth_terminator");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "smooth_terminator_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_SMOOTH_TERMINATOR);
 
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terminator_length_texture", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_terminator_length", "get_terminator_length");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terminator_length", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_terminator_length", "get_terminator_length");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "terminator_length_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_TERMINATOR_LENGTH);
 	
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "specular_falloff_texture", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_specular_falloff", "get_specular_falloff");
