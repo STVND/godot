@@ -634,7 +634,10 @@ void BaseMaterial3D::init_shaders() {
 	shader_names->msdf_pixel_range = "msdf_pixel_range";
 	shader_names->msdf_outline_size = "msdf_outline_size";
 
-	shader_names->metallic_texture_channel = "metallic_texture_channel";
+	shader_names->metallic_texture_channel = "metallic_texture_channel";	
+	shader_names->smooth_terminator_texture_channel = "smooth_terminator_texture_channel";
+	shader_names->terminator_length_texture_channel = "terminator_length_texture_channel";
+	shader_names->specular_falloff_texture_channel = "specular_falloff_texture_channel";
 	shader_names->ao_texture_channel = "ao_texture_channel";
 	shader_names->clearcoat_texture_channel = "clearcoat_texture_channel";
 	shader_names->rim_texture_channel = "rim_texture_channel";
@@ -648,6 +651,9 @@ void BaseMaterial3D::init_shaders() {
 	shader_names->texture_names[TEXTURE_ALBEDO] = "texture_albedo";
 	shader_names->texture_names[TEXTURE_METALLIC] = "texture_metallic";
 	shader_names->texture_names[TEXTURE_ROUGHNESS] = "texture_roughness";
+	shader_names->texture_names[TEXTURE_SMOOTH_TERMINATOR] = "texture_smooth_terminator";
+	shader_names->texture_names[TEXTURE_TERMINATOR_LENGTH] = "texture_terminator_length";
+	shader_names->texture_names[TEXTURE_SPECULAR_FALLOFF] = "texture_specular_falloff";
 	shader_names->texture_names[TEXTURE_EMISSION] = "texture_emission";
 	shader_names->texture_names[TEXTURE_NORMAL] = "texture_normal";
 	shader_names->texture_names[TEXTURE_BENT_NORMAL] = "texture_bent_normal";
@@ -1183,6 +1189,19 @@ uniform vec2 heightmap_flip;
 )",
 				texfilter_height_str);
 	}
+
+	if (features[FEATURE_CALLISTO]) {
+		code += vformat(R"(
+uniform sampler2D texture_smooth_terminator : hint_default_white, %s;
+uniform float smooth_terminator : hint_range(0.0, 1.0, 0.01);
+uniform sampler2D texture_terminator_length : hint_default_white, %s;
+uniform float terminator_length : hint_range(0.0, 1.0, 0.01);
+uniform sampler2D texture_smooth_terminator : hint_default_white, %s;
+uniform float specular_falloff : hint_range(0.0, 1.0, 0.01);
+)",
+				texfilter_str);
+	}
+
 	if (flags[FLAG_UV1_USE_TRIPLANAR]) {
 		code += "varying vec3 uv1_triplanar_pos;\n";
 	}
@@ -3659,6 +3678,17 @@ void BaseMaterial3D::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "roughness_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_ROUGHNESS);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "roughness_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_roughness_texture_channel", "get_roughness_texture_channel");
 
+	ADD_GROUP("Callisto", "");
+	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "callisto_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_feature", "get_feature", FEATURE_CALLISTO);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "smooth_terminator", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_smooth_terminator", "get_smooth_terminator");
+	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "smooth_terminator_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_SMOOTH_TERMINATOR);
+
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terminator_length_texture", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_terminator_length", "get_terminator_length");
+	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "terminator_length_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_TERMINATOR_LENGTH);
+	
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "specular_falloff_texture", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_specular_falloff", "get_specular_falloff");
+	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "specular_falloff", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_SPECULAR_FALLOFF);
+
 	ADD_GROUP("Emission", "emission_");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "emission_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_feature", "get_feature", FEATURE_EMISSION);
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "emission", PROPERTY_HINT_COLOR_NO_ALPHA), "set_emission", "get_emission");
@@ -3862,6 +3892,7 @@ void BaseMaterial3D::_bind_methods() {
 	BIND_ENUM_CONSTANT(FEATURE_ANISOTROPY);
 	BIND_ENUM_CONSTANT(FEATURE_AMBIENT_OCCLUSION);
 	BIND_ENUM_CONSTANT(FEATURE_HEIGHT_MAPPING);
+	BIND_ENUM_CONSTANT(FEATURE_CALLISTO);
 	BIND_ENUM_CONSTANT(FEATURE_SUBSURFACE_SCATTERING);
 	BIND_ENUM_CONSTANT(FEATURE_SUBSURFACE_TRANSMITTANCE);
 	BIND_ENUM_CONSTANT(FEATURE_BACKLIGHT);
@@ -3972,7 +4003,7 @@ BaseMaterial3D::BaseMaterial3D(bool p_orm) :
 	set_albedo(Color(1.0, 1.0, 1.0, 1.0));
 	set_specular(0.5);
 	set_roughness(1.0);
-	set_smooth_terminator(0.0);
+	set_smooth_terminator(0.5);
 	set_terminator_length(0.5);
 	set_specular_falloff(0.5);
 	set_metallic(0.0);
