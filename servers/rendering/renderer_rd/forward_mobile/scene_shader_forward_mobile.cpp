@@ -843,7 +843,8 @@ void fragment() {
 )");
 		default_material = material_storage->material_allocate();
 		material_storage->material_initialize(default_material);
-		material_storage->material_set_shader(default_material, default_shader);		MaterialData *md = static_cast<MaterialData *>(material_storage->material_get_data(default_material, RendererRD::MaterialStorage::SHADER_TYPE_3D));
+		material_storage->material_set_shader(default_material, default_shader);
+		MaterialData *md = static_cast<MaterialData *>(material_storage->material_get_data(default_material, RendererRD::MaterialStorage::SHADER_TYPE_3D));
 		default_shader_rd = shader.version_get_shader(md->shader_data->version, (use_fp16 ? SHADER_VERSION_MAX * 2 : 0) + SHADER_VERSION_COLOR_PASS);
 
 		default_material_shader_ptr = md->shader_data;

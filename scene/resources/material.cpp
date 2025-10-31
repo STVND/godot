@@ -3712,8 +3712,8 @@ void BaseMaterial3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terminator_length", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_terminator_length", "get_terminator_length");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "terminator_length_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_TERMINATOR_LENGTH);
 	
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "specular_falloff_texture", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_specular_falloff", "get_specular_falloff");
-	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "specular_falloff", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_SPECULAR_FALLOFF);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "specular_falloff", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_specular_falloff", "get_specular_falloff");
+	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "specular_falloff_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_SPECULAR_FALLOFF);
 
 	ADD_GROUP("Emission", "emission_");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "emission_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_feature", "get_feature", FEATURE_EMISSION);

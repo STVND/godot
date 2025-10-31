@@ -1185,7 +1185,7 @@ void fragment_shader(in SceneData scene_data) {
 	float specular = 0.5;
 	vec3 emission = vec3(0.0);
 	float roughness_highp = 1.0;
-	float smooth_terminator_highp = 0.0;
+	float smooth_terminator_highp = 0.5;
 	float terminator_length_highp = 0.5;
 	float specular_falloff_highp = 0.5;
 	float rim = 0.0;

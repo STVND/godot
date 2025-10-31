@@ -1103,7 +1103,7 @@ void main() {
 	float specular_highp = 0.5;
 	vec3 emission_highp = vec3(0.0);
 	float roughness_highp = 1.0;
-	float smooth_terminator_highp = 0.0;
+	float smooth_terminator_highp = 0.5;
 	float terminator_length_highp = 0.5;
 	float specular_falloff_highp = 0.5;
 	float rim_highp = 0.0;

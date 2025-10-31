@@ -230,11 +230,10 @@ void light_compute(hvec3 N, hvec3 L, hvec3 V, half A, hvec3 light_color, bool is
 			
 #elif defined(DIFFUSE_CALLISTO)
 			{	
-				smooth_terminator -= 0.5;
-				smooth_terminator *= 2.0;
+				half corrected_terminator = half((smooth_terminator - 0.5) * 2.0);
 				
 				half cNdotH = clamp(A + dot(N, H), half(0.0), half(1.0));
-				half c_2 = calculate_smooth_terminator(half(smooth_terminator), half(terminator_length), cNdotL, cLdotH, cNdotH);
+				half c_2 = calculate_smooth_terminator(corrected_terminator, half(terminator_length), cNdotL, cLdotH, cNdotH);
 				
 				diffuse_brdf_NL = cNdotL * half(1.0 / M_PI) * c_2;
 			}
