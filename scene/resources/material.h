@@ -512,9 +512,6 @@ private:
 		StringName ao_light_affect;
 
 		StringName metallic_texture_channel;
-		StringName smooth_terminator_texture_channel;
-		StringName terminator_length_texture_channel;
-		StringName specular_falloff_texture_channel;
 		StringName ao_texture_channel;
 		StringName clearcoat_texture_channel;
 		StringName rim_texture_channel;
@@ -625,9 +622,6 @@ private:
 	EmissionOperator emission_op = EMISSION_OP_ADD;
 
 	TextureChannel metallic_texture_channel;
-	TextureChannel smooth_terminator_texture_channel;
-	TextureChannel terminator_length_texture_channel;
-	TextureChannel specular_falloff_texture_channel;
 	TextureChannel roughness_texture_channel;
 	TextureChannel ao_texture_channel;
 	TextureChannel refraction_texture_channel;
@@ -887,12 +881,6 @@ public:
 
 	void set_metallic_texture_channel(TextureChannel p_channel);
 	TextureChannel get_metallic_texture_channel() const;
-	void set_smooth_terminator_texture_channel(TextureChannel p_channel);
-	TextureChannel get_smooth_terminator_texture_channel() const;
-	void set_terminator_length_texture_channel(TextureChannel p_channel);
-	TextureChannel get_terminator_length_texture_channel() const;
-	void set_specular_falloff_texture_channel(TextureChannel p_channel);
-	TextureChannel get_specular_falloff_texture_channel() const;
 	void set_roughness_texture_channel(TextureChannel p_channel);
 	TextureChannel get_roughness_texture_channel() const;
 	void set_ao_texture_channel(TextureChannel p_channel);

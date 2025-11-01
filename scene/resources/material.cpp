@@ -634,10 +634,7 @@ void BaseMaterial3D::init_shaders() {
 	shader_names->msdf_pixel_range = "msdf_pixel_range";
 	shader_names->msdf_outline_size = "msdf_outline_size";
 
-	shader_names->metallic_texture_channel = "metallic_texture_channel";	
-	shader_names->smooth_terminator_texture_channel = "smooth_terminator_texture_channel";
-	shader_names->terminator_length_texture_channel = "terminator_length_texture_channel";
-	shader_names->specular_falloff_texture_channel = "specular_falloff_texture_channel";
+	shader_names->metallic_texture_channel = "metallic_texture_channel";
 	shader_names->ao_texture_channel = "ao_texture_channel";
 	shader_names->clearcoat_texture_channel = "clearcoat_texture_channel";
 	shader_names->rim_texture_channel = "rim_texture_channel";
@@ -3711,7 +3708,7 @@ void BaseMaterial3D::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terminator_length", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_terminator_length", "get_terminator_length");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "terminator_length_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_TERMINATOR_LENGTH);
-	
+
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "specular_falloff", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_specular_falloff", "get_specular_falloff");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "specular_falloff_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_SPECULAR_FALLOFF);
 

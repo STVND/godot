@@ -669,9 +669,9 @@ void SceneShaderForwardMobile::init(const String p_defines) {
 		actions.renames["METALLIC"] = "metallic_highp";
 		actions.renames["SPECULAR"] = "specular_highp";
 		actions.renames["ROUGHNESS"] = "roughness_highp";
-		actions.renames["SMOOTH_TERMINATOR"] = "smooth_terminator";
-		actions.renames["TERMINATOR_LENGTH"] = "terminator_length";
-		actions.renames["SPECULAR_FALLOFF"] = "specular_falloff";
+		actions.renames["SMOOTH_TERMINATOR"] = "smooth_terminator_highp";
+		actions.renames["TERMINATOR_LENGTH"] = "terminator_length_highp";
+		actions.renames["SPECULAR_FALLOFF"] = "specular_falloff_highp";
 		actions.renames["RIM"] = "rim_highp";
 		actions.renames["RIM_TINT"] = "rim_tint_highp";
 		actions.renames["CLEARCOAT"] = "clearcoat_highp";
@@ -844,6 +844,7 @@ void fragment() {
 		default_material = material_storage->material_allocate();
 		material_storage->material_initialize(default_material);
 		material_storage->material_set_shader(default_material, default_shader);
+
 		MaterialData *md = static_cast<MaterialData *>(material_storage->material_get_data(default_material, RendererRD::MaterialStorage::SHADER_TYPE_3D));
 		default_shader_rd = shader.version_get_shader(md->shader_data->version, (use_fp16 ? SHADER_VERSION_MAX * 2 : 0) + SHADER_VERSION_COLOR_PASS);
 
