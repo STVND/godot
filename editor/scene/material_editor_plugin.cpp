@@ -452,6 +452,36 @@ void EditorInspectorPluginMaterial::_undo_redo_inspector_callback(Object *p_undo
 						undo_redo->add_undo_property(p_edited, "metallic", value);
 					}
 				}
+			} else if (p_property == "smooth_terminator_texture") {
+				if (base_material->get_texture(StandardMaterial3D::TEXTURE_SMOOTH_TERMINATOR).is_null()) {
+					undo_redo->add_do_property(p_edited, "smooth_terminator", 1.0);
+
+					bool valid = false;
+					Variant value = p_edited->get("smooth_terminator", &valid);
+					if (valid) {
+						undo_redo->add_undo_property(p_edited, "smooth_terminator", value);
+					}
+				}
+			} else if (p_property == "terminator_falloff_texture") {
+				if (base_material->get_texture(StandardMaterial3D::TEXTURE_TERMINATOR_LENGTH).is_null()) {
+					undo_redo->add_do_property(p_edited, "terminator_falloff", 1.0);
+
+					bool valid = false;
+					Variant value = p_edited->get("terminator_falloff", &valid);
+					if (valid) {
+						undo_redo->add_undo_property(p_edited, "terminator_falloff", value);
+					}
+				}
+			} else if (p_property == "specular_falloff_texture") {
+				if (base_material->get_texture(StandardMaterial3D::TEXTURE_SPECULAR_FALLOFF).is_null()) {
+					undo_redo->add_do_property(p_edited, "specular_falloff", 1.0);
+
+					bool valid = false;
+					Variant value = p_edited->get("specular_falloff", &valid);
+					if (valid) {
+						undo_redo->add_undo_property(p_edited, "specular_falloff", value);
+					}
+				}
 			}
 		}
 	}
