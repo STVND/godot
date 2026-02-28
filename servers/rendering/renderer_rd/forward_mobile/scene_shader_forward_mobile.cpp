@@ -225,17 +225,6 @@ void SceneShaderForwardMobile::ShaderData::set_code(const String &p_code) {
 		WARN_PRINT_ONCE_ED("Transmittance is only available when using the Forward+ renderer.");
 	}
 
-	if (uses_shadow_falloff) {
-		WARN_PRINT_ONCE_ED("Shadow falloff is only available when using the Forward+ renderer.");
-	}
-	
-	if (uses_specular_falloff) {
-		WARN_PRINT_ONCE_ED("Specular falloff is only available when using the Forward+ renderer.");
-	}
-
-	if (uses_retroreflection) {
-		WARN_PRINT_ONCE_ED("Retroreflection is only available when using the Forward+ renderer.");
-	}
 #endif
 
 #if 0

@@ -1505,6 +1505,41 @@ float SchlickFresnel(float u) {
 	return m2 * m2 * m; // pow(m,5)
 }
 
+float FalloffFresnel(float u, float x) {
+	float r_ns = 2.0 * (1.0 - x);
+	float m = 1.0 - u;
+	float m_pow = pow(m, 5.0 * r_ns);
+	float t_term = clamp(2.0 - r_ns, 0.0, 1.0);
+	return t_term * m_pow;
+}
+
+float rr_remap(float x) {
+	return 2.0 * (1.0 - x);
+}
+
+float h_falloff_retro(float theta, float remapped_falloff) {
+	float m = max(0.0, theta);
+	return pow(m, 5.0 * remapped_falloff);
+}
+
+float calculate_retroreflection(float rr_intensity, float rr_falloff, float rr_tangent, float cLdotH, float cNdotH) {
+	float falloff_n = rr_remap(rr_falloff);
+	float falloff_m = rr_remap(rr_tangent);
+	float alpha_r = h_falloff_retro(cNdotH, falloff_n) + h_falloff_retro(cLdotH, falloff_m) * M_PI;
+	alpha_r = pow(sin(clamp(alpha_r, 0.0, 1.0)), 5.0);
+
+	return clamp(mix(1.0, rr_intensity, alpha_r), 1.0, 256.0);
+}
+
+float calculate_shadow_falloff(float half_falloff, float half_factor, float cNdotL, float cLdotH, float cNdotH) {
+	float a = 1.0 - pow(1.0 - cLdotH, 3.0);
+	float b = 1.0 - pow(1.0 - cNdotH, 3.0);
+	float edge = a * b * half_factor;
+	float s = smoothstep(0.0, edge, cNdotL);
+
+	return mix(1.0, s, a * b * half_falloff);
+}
+
 void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_directional, float attenuation, vec3 f0, float roughness, float metallic, float specular_amount, vec3 albedo, inout float alpha, vec2 screen_uv,
 #ifdef LIGHT_BACKLIGHT_USED
 		vec3 backlight,
@@ -1517,6 +1552,17 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 #endif
 #ifdef LIGHT_ANISOTROPY_USED
 		vec3 B, vec3 T, float anisotropy,
+#endif
+#ifdef SHADOW_FALLOFF_USED
+		float shadow_falloff, float falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		float specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		float retroreflection,
+		float retroreflection_falloff,
+		float retroreflection_tangent,
 #endif
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 
@@ -1543,15 +1589,15 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 	float NdotV = dot(N, V);
 	float cNdotV = max(NdotV, 1e-4);
 
-#if defined(DIFFUSE_BURLEY) || defined(SPECULAR_SCHLICK_GGX) || defined(LIGHT_CLEARCOAT_USED)
+#if defined(DIFFUSE_BURLEY) || defined(SPECULAR_SCHLICK_GGX) || defined(LIGHT_CLEARCOAT_USED) || defined(SHADOW_FALLOFF_USED) || defined(RETROREFLECTION_USED)
 	vec3 H = normalize(V + L);
 #endif
 
-#if defined(SPECULAR_SCHLICK_GGX)
+#if defined(SPECULAR_SCHLICK_GGX) || defined(SHADOW_FALLOFF_USED) || defined(RETROREFLECTION_USED)
 	float cNdotH = clamp(A + dot(N, H), 0.0, 1.0);
 #endif
 
-#if defined(DIFFUSE_BURLEY) || defined(SPECULAR_SCHLICK_GGX) || defined(LIGHT_CLEARCOAT_USED)
+#if defined(DIFFUSE_BURLEY) || defined(SPECULAR_SCHLICK_GGX) || defined(LIGHT_CLEARCOAT_USED) || defined(SHADOW_FALLOFF_USED) || defined(RETROREFLECTION_USED)
 	float cLdotH = clamp(A + dot(L, H), 0.0, 1.0);
 #endif
 
@@ -1574,6 +1620,18 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 #else
 		// Lambert
 		diffuse_brdf_NL = cNdotL * (1.0 / M_PI);
+#endif
+
+#if defined(RETROREFLECTION_USED)
+			float c_1 = calculate_retroreflection(retroreflection, retroreflection_falloff, retroreflection_tangent, cLdotH, cNdotH);
+			diffuse_brdf_NL *= c_1;
+#endif
+
+#if defined(SHADOW_FALLOFF_USED)
+			float corrected_falloff = (shadow_falloff - 0.5) * 2.0;
+			float c_2 = calculate_shadow_falloff(corrected_falloff, falloff_factor, cNdotL, cLdotH, cNdotH);
+
+			diffuse_brdf_NL *= c_2;
 #endif
 
 		diffuse_light += light_color * diffuse_brdf_NL * attenuation;
@@ -1621,7 +1679,12 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 		float G = V_GGX(cNdotL, cNdotV, alpha_ggx);
 #endif // LIGHT_ANISOTROPY_USED
 	   // F
-		float cLdotH5 = SchlickFresnel(cLdotH);
+
+#if defined(SPECULAR_FALLOFF_USED)
+	float cLdotH5 = FalloffFresnel(cLdotH, specular_falloff);
+#else
+	float cLdotH5 = SchlickFresnel(cLdotH);
+#endif
 		// Calculate Fresnel using cheap approximate specular occlusion term from Filament:
 		// https://google.github.io/filament/Filament.html#lighting/occlusion/specularocclusion
 		float f90 = clamp(50.0 * f0.g, 0.0, 1.0);
@@ -1682,6 +1745,17 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #ifdef LIGHT_ANISOTROPY_USED
 		vec3 binormal, vec3 tangent, float anisotropy,
 #endif
+#ifdef SHADOW_FALLOFF_USED
+		float shadow_falloff, float falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		float specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		float retroreflection,
+		float retroreflection_falloff,
+		float retroreflection_tangent,
+#endif
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 	vec3 light_rel_vec = omni_lights[idx].position - vertex;
 	float light_length = length(light_rel_vec);
@@ -1709,6 +1783,17 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #ifdef LIGHT_ANISOTROPY_USED
 			binormal, tangent, anisotropy,
 #endif
+#ifdef SHADOW_FALLOFF_USED
+		shadow_falloff, falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
+#endif
 			diffuse_light,
 			specular_light);
 }
@@ -1727,6 +1812,17 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #endif
 #ifdef LIGHT_ANISOTROPY_USED
 		vec3 binormal, vec3 tangent, float anisotropy,
+#endif
+#ifdef SHADOW_FALLOFF_USED
+		float shadow_falloff, float falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		float specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		float retroreflection,
+		float retroreflection_falloff,
+		float retroreflection_tangent,
 #endif
 		inout vec3 diffuse_light,
 		inout vec3 specular_light) {
@@ -1764,6 +1860,17 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 f
 #endif
 #ifdef LIGHT_ANISOTROPY_USED
 			binormal, tangent, anisotropy,
+#endif
+#ifdef SHADOW_FALLOFF_USED
+		shadow_falloff, falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
 #endif
 			diffuse_light, specular_light);
 }
@@ -2010,6 +2117,12 @@ void main() {
 	float clearcoat = 0.0;
 	float clearcoat_roughness = 0.0;
 	float anisotropy = 0.0;
+	float shadow_falloff = 0.5;
+	float falloff_factor = 0.5;
+	float specular_falloff = 0.5;
+	float retroreflection = 0.0;
+	float retroreflection_falloff = 0.75;
+	float retroreflection_tangent = 0.75;
 	vec2 anisotropy_flow = vec2(1.0, 0.0);
 #ifdef PREMUL_ALPHA_USED
 	float premul_alpha = 1.0;
@@ -2414,6 +2527,17 @@ void main() {
 				binormal,
 				tangent, anisotropy,
 #endif
+#ifdef SHADOW_FALLOFF_USED
+		shadow_falloff, falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
+#endif
 				diffuse_light,
 				specular_light);
 	}
@@ -2439,6 +2563,17 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 				binormal, tangent, anisotropy,
 #endif
+#ifdef SHADOW_FALLOFF_USED
+		shadow_falloff, falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
+#endif
 				diffuse_light, specular_light);
 	}
 #endif // !DISABLE_LIGHT_OMNI
@@ -2463,6 +2598,17 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 				tangent,
 				binormal, anisotropy,
+#endif
+#ifdef SHADOW_FALLOFF_USED
+		shadow_falloff, falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
 #endif
 				diffuse_light, specular_light);
 	}
@@ -2729,6 +2875,17 @@ void main() {
 				binormal,
 				tangent, anisotropy,
 #endif
+#ifdef SHADOW_FALLOFF_USED
+		shadow_falloff, falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
+#endif
 				diffuse_light,
 				specular_light);
 	} else {
@@ -2764,6 +2921,17 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 			binormal, tangent, anisotropy,
 #endif
+#ifdef SHADOW_FALLOFF_USED
+		shadow_falloff, falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
+#endif
 			diffuse_light, specular_light);
 #else
 	// Just apply shadows to vertex lighting.
@@ -2794,6 +2962,17 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 			tangent,
 			binormal, anisotropy,
+#endif
+#ifdef SHADOW_FALLOFF_USED
+		shadow_falloff, falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
 #endif
 			diffuse_light, specular_light);
 #else

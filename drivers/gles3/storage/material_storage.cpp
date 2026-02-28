@@ -1315,6 +1315,12 @@ MaterialStorage::MaterialStorage() {
 		actions.renames["AO"] = "ao";
 		actions.renames["AO_LIGHT_AFFECT"] = "ao_light_affect";
 		actions.renames["EMISSION"] = "emission";
+		actions.renames["SHADOW_FALLOFF"] = "shadow_falloff";
+		actions.renames["FALLOFF_FACTOR"] = "falloff_factor";
+		actions.renames["SPECULAR_FALLOFF"] = "specular_falloff";
+		actions.renames["RETROREFLECTION"] = "retroreflection";
+		actions.renames["RETROREFLECTION_FALLOFF"] = "retroreflection_falloff";
+		actions.renames["RETROREFLECTION_TANGENT"] = "retroreflection_tangent";
 		actions.renames["POINT_COORD"] = "gl_PointCoord";
 		actions.renames["INSTANCE_CUSTOM"] = "instance_custom";
 		actions.renames["SCREEN_UV"] = "screen_uv";
@@ -1360,6 +1366,15 @@ MaterialStorage::MaterialStorage() {
 		actions.usage_defines["CLEARCOAT_ROUGHNESS"] = "@CLEARCOAT";
 		actions.usage_defines["ANISOTROPY"] = "#define LIGHT_ANISOTROPY_USED\n";
 		actions.usage_defines["ANISOTROPY_FLOW"] = "@ANISOTROPY";
+		actions.usage_defines["SHADOW_FALLOFF"] = "#define SHADOW_FALLOFF_USED\n";
+		actions.usage_defines["FALLOFF_FACTOR"] = "@SHADOW_FALLOFF";
+
+		actions.usage_defines["SPECULAR_FALLOFF"] = "#define SPECULAR_FALLOFF_USED\n";
+
+		actions.usage_defines["RETROREFLECTION"] = "#define RETROREFLECTION_USED\n";
+		actions.usage_defines["RETROREFLECTION_FALLOFF"] = "@RETROREFLECTION";
+		actions.usage_defines["RETROREFLECTION_TANGENT"] = "@RETROREFLECTION";
+
 		actions.usage_defines["AO"] = "#define AO_USED\n";
 		actions.usage_defines["AO_LIGHT_AFFECT"] = "#define AO_USED\n";
 		actions.usage_defines["UV"] = "#define UV_USED\n";
@@ -3125,17 +3140,6 @@ void SceneShaderData::set_code(const String &p_code) {
 		WARN_PRINT_ONCE_ED("Subsurface scattering is only available when using the Forward+ renderer.");
 	}
 
-	if (uses_transmittance) {
-		WARN_PRINT_ONCE_ED("Transmittance is only available when using the Forward+ renderer.");
-	}
-
-	if (uses_normal_texture) {
-		WARN_PRINT_ONCE_ED("Reading from the normal-roughness texture is only available when using the Forward+ or Mobile renderer.");
-	}
-
-	if (uses_retroreflection) {
-		WARN_PRINT_ONCE_ED("Retroreflection is only available when using the Forward+ renderer.");
-	}
 #endif
 
 #if 0

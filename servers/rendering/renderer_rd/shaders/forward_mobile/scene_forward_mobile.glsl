@@ -2116,17 +2116,17 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 					binormal, tangent, anisotropy,
 #endif
-// #ifdef SHADOW_FALLOFF_USED
-// 		half shadow_falloff, half falloff_factor,
-// #endif
-// #ifdef SPECULAR_FALLOFF_USED
-// 		half specular_falloff,
-// #endif
-// #ifdef RETROREFLECTION_USED
-// 		retroreflection,
-// 		retroreflection_falloff,
-// 		retroreflection_tangent,
-// #endif
+#ifdef SHADOW_FALLOFF_USED
+		half shadow_falloff, half falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		half specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
+#endif
 					diffuse_light,
 					direct_specular_light);
 		}
@@ -2163,17 +2163,17 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 				binormal, tangent, anisotropy,
 #endif
-// #ifdef SHADOW_FALLOFF_USED
-// 		half shadow_falloff, half falloff_factor,
-// #endif
-// #ifdef SPECULAR_FALLOFF_USED
-// 		half specular_falloff,
-// #endif
-// #ifdef RETROREFLECTION_USED
-// 		retroreflection,
-// 		retroreflection_falloff,
-// 		retroreflection_tangent,
-// #endif
+#ifdef SHADOW_FALLOFF_USED
+		half shadow_falloff, half falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		half specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
+#endif
 				diffuse_light, direct_specular_light);
 	}
 
@@ -2206,17 +2206,17 @@ void main() {
 #ifdef LIGHT_ANISOTROPY_USED
 				binormal, tangent, anisotropy,
 #endif
-// #ifdef SHADOW_FALLOFF_USED
-// 		half shadow_falloff, half falloff_factor,
-// #endif
-// #ifdef SPECULAR_FALLOFF_USED
-// 		half specular_falloff,
-// #endif
-// #ifdef RETROREFLECTION_USED
-// 		retroreflection,
-// 		retroreflection_falloff,
-// 		retroreflection_tangent,
-// #endif
+#ifdef SHADOW_FALLOFF_USED
+		half shadow_falloff, half falloff_factor,
+#endif
+#ifdef SPECULAR_FALLOFF_USED
+		half specular_falloff,
+#endif
+#ifdef RETROREFLECTION_USED
+		retroreflection,
+		retroreflection_falloff,
+		retroreflection_tangent,
+#endif
 				diffuse_light, direct_specular_light);
 	}
 #endif // !VERTEX_LIGHTING

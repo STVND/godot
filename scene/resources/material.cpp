@@ -2728,20 +2728,6 @@ void BaseMaterial3D::_validate_property(PropertyInfo &p_property) const {
 		p_property.usage = PROPERTY_USAGE_NONE;
 	}
 
-	if ((GLOBAL_GET("rendering/renderer/rendering_method")) != "forward_plus") {
-		if (p_property.name.begins_with("shadow_falloff")) {
-			p_property.usage = PROPERTY_USAGE_NONE;
-		}
-
-		if (p_property.name.begins_with("specular_falloff")) {
-			p_property.usage = PROPERTY_USAGE_NONE;
-		}
-
-		if (p_property.name.begins_with("retroreflection")) {
-			p_property.usage = PROPERTY_USAGE_NONE;
-		}
- 	}
-
 	if (p_property.name.begins_with("particles_anim_") && billboard_mode != BILLBOARD_PARTICLES) {
 		p_property.usage = PROPERTY_USAGE_NONE;
 	}
