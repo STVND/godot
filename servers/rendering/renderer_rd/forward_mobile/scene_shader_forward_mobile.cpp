@@ -701,7 +701,7 @@ void SceneShaderForwardMobile::init(const String p_defines) {
 		actions.renames["FALLOFF_FACTOR"] = "falloff_factor_highp";
 		actions.renames["SPECULAR_FALLOFF"] = "specular_falloff_highp";
 		actions.renames["RETROREFLECTION"] = "retroreflection_highp";
-		actions.renames["RETROREFLECTION_FALLOFF"] = "retroreflection_highp";
+		actions.renames["RETROREFLECTION_FALLOFF"] = "retroreflection_falloff_highp";
 		actions.renames["RETROREFLECTION_TANGENT"] = "retroreflection_tangent_highp";
 		actions.renames["RIM"] = "rim_highp";
 		actions.renames["RIM_TINT"] = "rim_tint_highp";

@@ -210,6 +210,9 @@ struct SkyShaderData : public ShaderData {
 
 	bool uses_time;
 	bool uses_position;
+	bool uses_shadow_falloff;
+	bool uses_specular_falloff;
+	bool uses_retroreflection;
 	bool uses_half_res;
 	bool uses_quarter_res;
 	bool uses_light;
@@ -328,6 +331,8 @@ struct SceneShaderData : public ShaderData {
 	bool uses_screen_texture_mipmaps;
 	bool uses_depth_texture;
 	bool uses_normal_texture;
+	bool uses_shadow_falloff;
+	bool uses_specular_falloff;
 	bool uses_retroreflection;
 	bool uses_bent_normal_texture;
 	bool uses_time;

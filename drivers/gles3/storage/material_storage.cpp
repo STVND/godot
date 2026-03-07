@@ -2806,6 +2806,9 @@ void SkyShaderData::set_code(const String &p_code) {
 
 	uses_time = false;
 	uses_position = false;
+	uses_shadow_falloff = false;
+	uses_specular_falloff = false;
+	uses_retroreflection = false;
 	uses_half_res = false;
 	uses_quarter_res = false;
 	uses_light = false;
@@ -3140,6 +3143,13 @@ void SceneShaderData::set_code(const String &p_code) {
 		WARN_PRINT_ONCE_ED("Subsurface scattering is only available when using the Forward+ renderer.");
 	}
 
+	if (uses_transmittance) {
+		WARN_PRINT_ONCE_ED("Transmittance is only available when using the Forward+ renderer.");
+	}
+
+	if (uses_normal_texture) {
+		WARN_PRINT_ONCE_ED("Reading from the normal-roughness texture is only available when using the Forward+ or Mobile renderer.");
+	}
 #endif
 
 #if 0

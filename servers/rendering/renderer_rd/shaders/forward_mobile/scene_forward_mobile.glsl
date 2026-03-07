@@ -2117,10 +2117,10 @@ void main() {
 					binormal, tangent, anisotropy,
 #endif
 #ifdef SHADOW_FALLOFF_USED
-		half shadow_falloff, half falloff_factor,
+		shadow_falloff, falloff_factor,
 #endif
 #ifdef SPECULAR_FALLOFF_USED
-		half specular_falloff,
+		specular_falloff,
 #endif
 #ifdef RETROREFLECTION_USED
 		retroreflection,
@@ -2164,10 +2164,10 @@ void main() {
 				binormal, tangent, anisotropy,
 #endif
 #ifdef SHADOW_FALLOFF_USED
-		half shadow_falloff, half falloff_factor,
+		shadow_falloff, falloff_factor,
 #endif
 #ifdef SPECULAR_FALLOFF_USED
-		half specular_falloff,
+		specular_falloff,
 #endif
 #ifdef RETROREFLECTION_USED
 		retroreflection,
@@ -2207,10 +2207,10 @@ void main() {
 				binormal, tangent, anisotropy,
 #endif
 #ifdef SHADOW_FALLOFF_USED
-		half shadow_falloff, half falloff_factor,
+		shadow_falloff, falloff_factor,
 #endif
 #ifdef SPECULAR_FALLOFF_USED
-		half specular_falloff,
+		specular_falloff,
 #endif
 #ifdef RETROREFLECTION_USED
 		retroreflection,

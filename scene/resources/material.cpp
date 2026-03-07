@@ -643,6 +643,9 @@ void BaseMaterial3D::init_shaders() {
 	shader_names->rim_texture_channel = "rim_texture_channel";
 	shader_names->heightmap_texture_channel = "heightmap_texture_channel";
 	shader_names->refraction_texture_channel = "refraction_texture_channel";
+	shader_names->shadow_falloff_texture_channel = "shadow_falloff_texture_channel";
+	shader_names->falloff_factor_texture_channel = "falloff_factor_texture_channel";
+	shader_names->specular_falloff_texture_channel = "specular_falloff_texture_channel";
 	shader_names->retroreflection_texture_channel = "retroreflection_texture_channel";
 	shader_names->retroreflection_falloff_texture_channel = "retroreflection_falloff_texture_channel";
 	shader_names->retroreflection_tangent_texture_channel = "retroreflection_tangent_texture_channel";
@@ -1072,20 +1075,23 @@ uniform float metallic : hint_range(0.0, 1.0, 0.01);
 		code += vformat(R"(
 uniform float shadow_falloff : hint_range(0.0, 1.0, 0.01);
 uniform sampler2D texture_shadow_falloff : hint_default_white, %s;
+uniform vec4 shadow_falloff_texture_channel;
 )",
 				texfilter_str);
 
 		code += vformat(R"(
 uniform float falloff_factor : hint_range(0.0, 1.0, 0.01);
 uniform sampler2D texture_falloff_factor : hint_default_white, %s;
+uniform vec4 falloff_factor_texture_channel;
 )",
 				texfilter_str);
-	}
+}
 	
 	if (features[FEATURE_SPECULAR_FALLOFF]) {
 		code += vformat(R"(
 uniform float specular_falloff : hint_range(0.0, 1.0, 0.01);
 uniform sampler2D texture_specular_falloff : hint_default_white, %s;
+uniform vec4 specular_falloff_texture_channel;
 )",
 				texfilter_str);
 	}
@@ -1094,16 +1100,20 @@ uniform sampler2D texture_specular_falloff : hint_default_white, %s;
 		code += vformat(R"(
 uniform float retroreflection : hint_range(0.0, 256.0, 0.01);
 uniform sampler2D texture_retroreflection : hint_default_white, %s;
+uniform vec4 retroreflection_texture_channel;
 )",
 				texfilter_str);
 		code += vformat(R"(
 uniform float retroreflection_falloff : hint_range(0.0, 1.0, 0.01);
 uniform sampler2D texture_retroreflection_falloff : hint_default_white, %s;
+uniform vec4 retroreflection_falloff_texture_channel;
 )",
 				texfilter_str);
 		code += vformat(R"(
 uniform float retroreflection_tangent : hint_range(0.0, 1.0, 0.01);
 uniform sampler2D texture_retroreflection_tangent : hint_default_white, %s;
+uniform vec4 retroreflection_tangent_texture_channel;
+
 )",
 				texfilter_str);
 	}
@@ -2040,15 +2050,14 @@ void fragment() {)";
 		// Shadow Falloff Control: Enabled
 )";
 		if (flags[FLAG_UV1_USE_TRIPLANAR]) {
-			code += "	float shadow_falloff_tex = triplanar_texture(texture_shadow_falloff, uv1_power_normal, uv1_triplanar_pos).r;\n";
-			code += " 	float falloff_factor_tex = triplanar_texture(texture_falloff_factor, uv1_power_normal, uv1_triplanar_pos).r;\n";
+			code += "	float shadow_falloff_tex = dot(triplanar_texture(texture_shadow_falloff, uv1_power_normal, uv1_triplanar_pos), shadow_falloff_texture_channel);";
+			code += "	float falloff_factor_tex = dot(triplanar_texture(texture_falloff_factor, uv1_power_normal, uv1_triplanar_pos), falloff_factor_texture_channel);";
 		} else {
-			code += "	float shadow_falloff_tex = texture(texture_shadow_falloff, base_uv).r;\n";
-			code += "	float falloff_factor_tex = texture(texture_falloff_factor, base_uv).r;\n";
+			code += "	float shadow_falloff_tex = dot(texture(texture_shadow_falloff, base_uv), shadow_falloff_texture_channel);";
+			code += "	float falloff_factor_tex = dot(texture(texture_falloff_factor, base_uv), falloff_factor_texture_channel);";
 		}
 		code += "	SHADOW_FALLOFF = shadow_falloff * shadow_falloff_tex;\n";
-		code += "	FALLOFF_FACTOR = falloff_factor * falloff_factor_tex;\n";
-		
+		code += "	FALLOFF_FACTOR = falloff_factor * falloff_factor_tex;\n";	
 	}
 
 	if (features[FEATURE_SPECULAR_FALLOFF]) {
@@ -2056,9 +2065,9 @@ void fragment() {)";
 		// Specular Falloff Control: Enabled
 )";
 		if (flags[FLAG_UV1_USE_TRIPLANAR]) {
-			code += " 	float specular_falloff_tex = triplanar_texture(texture_specular_falloff, uv1_power_normal, uv1_triplanar_pos).r;\n";
+			code += " 	float specular_falloff_tex = dot(triplanar_texture(texture_specular_falloff, uv1_power_normal, uv1_triplanar_pos), specular_falloff_texture_channel);";
 		} else {
-			code += "	float specular_falloff_tex = texture(texture_specular_falloff, base_uv).r;\n";
+			code += "	float specular_falloff_tex = dot(texture(texture_specular_falloff, base_uv), specular_falloff_texture_channel);";
 		}
 		code += "	SPECULAR_FALLOFF = specular_falloff * specular_falloff_tex;\n";
 	}
@@ -2068,13 +2077,13 @@ void fragment() {)";
 		// Retroreflection: Enabled
 )";
 		if (flags[FLAG_UV1_USE_TRIPLANAR]) {
-			code += " 	float retroreflection_tex = triplanar_texture(texture_retroreflection_falloff, uv1_power_normal, uv1_triplanar_pos).r;\n";
-			code += " 	float retroreflection_falloff_tex = triplanar_texture(texture_retroreflection_falloff, uv1_power_normal, uv1_triplanar_pos).r;\n";
-			code += "	float retroreflection_tangent_tex = triplanar_texture(texture_retroreflection_tangent, uv1_power_normal, uv1_triplanar_pos).r;\n";
+			code += " 	float retroreflection_tex = dot(triplanar_texture(texture_retroreflection, uv1_power_normal, uv1_triplanar_pos), retroreflection_texture_channel);";
+			code += " 	float retroreflection_falloff_tex = dot(triplanar_texture(texture_retroreflection_falloff, uv1_power_normal, uv1_triplanar_pos), retroreflection_falloff_texture_channel);";
+			code += "	float retroreflection_tangent_tex = dot(triplanar_texture(texture_tangent_retroreflection, uv1_power_normal, uv1_triplanar_pos), retroreflection_tangent_texture_channel);";
 		} else {
-			code += "	float retroreflection_tex = texture(texture_retroreflection, base_uv).r;\n";
-			code += "	float retroreflection_falloff_tex = texture(texture_retroreflection_falloff, base_uv).r;\n";
-			code += "	float retroreflection_tangent_tex = texture(texture_retroreflection_tangent, base_uv).r;\n";
+			code += "	float retroreflection_tex = dot(texture(texture_retroreflection, base_uv), retroreflection_texture_channel);";
+			code += "	float retroreflection_falloff_tex = dot(texture(texture_retroreflection_falloff, base_uv), retroreflection_falloff_texture_channel);";
+			code += "	float retroreflection_tangent_tex = dot(texture(texture_retroreflection_tangent, base_uv), retroreflection_tangent_texture_channel);";
 		}
 		code += "	RETROREFLECTION = retroreflection * retroreflection_tex;\n";
 		code += "	RETROREFLECTION_FALLOFF = retroreflection_falloff * retroreflection_falloff_tex;\n";
@@ -3160,6 +3169,36 @@ BaseMaterial3D::TextureChannel BaseMaterial3D::get_retroreflection_texture_chann
 	return retroreflection_texture_channel;
 }
 
+void BaseMaterial3D::set_shadow_falloff_texture_channel(TextureChannel p_channel) {
+	ERR_FAIL_INDEX(p_channel, 5);
+	shadow_falloff_texture_channel = p_channel;
+	_material_set_param(shader_names->shadow_falloff_texture_channel, _get_texture_mask(p_channel));
+}
+
+BaseMaterial3D::TextureChannel BaseMaterial3D::get_shadow_falloff_texture_channel() const {
+	return shadow_falloff_texture_channel;
+}
+
+void BaseMaterial3D::set_falloff_factor_texture_channel(TextureChannel p_channel) {
+	ERR_FAIL_INDEX(p_channel, 5);
+	falloff_factor_texture_channel = p_channel;
+	_material_set_param(shader_names->falloff_factor_texture_channel, _get_texture_mask(p_channel));
+}
+
+BaseMaterial3D::TextureChannel BaseMaterial3D::get_falloff_factor_texture_channel() const {
+	return falloff_factor_texture_channel;
+}
+
+void BaseMaterial3D::set_specular_falloff_texture_channel(TextureChannel p_channel) {
+	ERR_FAIL_INDEX(p_channel, 5);
+	specular_falloff_texture_channel = p_channel;
+	_material_set_param(shader_names->specular_falloff_texture_channel, _get_texture_mask(p_channel));
+}
+
+BaseMaterial3D::TextureChannel BaseMaterial3D::get_specular_falloff_texture_channel() const {
+	return specular_falloff_texture_channel;
+}
+
 void BaseMaterial3D::set_retroreflection_falloff_texture_channel(TextureChannel p_channel) {
 	ERR_FAIL_INDEX(p_channel, 5);
 	retroreflection_falloff_texture_channel = p_channel;
@@ -3737,6 +3776,15 @@ void BaseMaterial3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_refraction_texture_channel", "channel"), &BaseMaterial3D::set_refraction_texture_channel);
 	ClassDB::bind_method(D_METHOD("get_refraction_texture_channel"), &BaseMaterial3D::get_refraction_texture_channel);
 
+	ClassDB::bind_method(D_METHOD("set_shadow_falloff_texture_channel", "channel"), &BaseMaterial3D::set_shadow_falloff_texture_channel);
+	ClassDB::bind_method(D_METHOD("get_shadow_falloff_texture_channel"), &BaseMaterial3D::get_shadow_falloff_texture_channel);
+
+	ClassDB::bind_method(D_METHOD("set_falloff_factor_texture_channel", "channel"), &BaseMaterial3D::set_falloff_factor_texture_channel);
+	ClassDB::bind_method(D_METHOD("get_falloff_factor_texture_channel"), &BaseMaterial3D::get_falloff_factor_texture_channel);
+
+	ClassDB::bind_method(D_METHOD("set_specular_falloff_texture_channel", "channel"), &BaseMaterial3D::set_specular_falloff_texture_channel);
+	ClassDB::bind_method(D_METHOD("get_specular_falloff_texture_channel"), &BaseMaterial3D::get_specular_falloff_texture_channel);
+
 	ClassDB::bind_method(D_METHOD("set_retroreflection_texture_channel", "channel"), &BaseMaterial3D::set_retroreflection_texture_channel);
 	ClassDB::bind_method(D_METHOD("get_retroreflection_texture_channel"), &BaseMaterial3D::get_retroreflection_texture_channel);
 
@@ -3839,23 +3887,29 @@ void BaseMaterial3D::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "shadow_falloff_control", PROPERTY_HINT_GROUP_ENABLE), "set_feature", "get_feature", FEATURE_SHADOW_FALLOFF);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "shadow_falloff", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_shadow_falloff", "get_shadow_falloff");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "shadow_falloff_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_SHADOW_FALLOFF);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "shadow_falloff_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_shadow_falloff_texture_channel", "get_shadow_falloff_texture_channel");
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "falloff_factor", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_falloff_factor", "get_falloff_factor");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "falloff_factor_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_FALLOFF_FACTOR);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "falloff_factor_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_falloff_factor_texture_channel", "get_falloff_factor_texture_channel");
 
 	ADD_GROUP("Specular Falloff", "");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "specular_falloff_control", PROPERTY_HINT_GROUP_ENABLE), "set_feature", "get_feature", FEATURE_SPECULAR_FALLOFF);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "specular_falloff", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_specular_falloff", "get_specular_falloff");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "specular_falloff_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_SPECULAR_FALLOFF);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "specular_falloff_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_specular_falloff_texture_channel", "get_specular_falloff_texture_channel");
 
 	ADD_GROUP("Retroreflection", "");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "retroreflection_control", PROPERTY_HINT_GROUP_ENABLE), "set_feature", "get_feature", FEATURE_RETROREFLECTION);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "retroreflection", PROPERTY_HINT_RANGE, "0,256,0.01"), "set_retroreflection", "get_retroreflection");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "retroreflection_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_RETROREFLECTION);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "retroreflection_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_retroreflection_texture_channel", "get_retroreflection_texture_channel");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "retroreflection_falloff", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_retroreflection_falloff", "get_retroreflection_falloff");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "retroreflection_falloff_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_RETROREFLECTION_FALLOFF);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "retroreflection_falloff_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_retroreflection_falloff_texture_channel", "get_retroreflection_falloff_texture_channel");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "retroreflection_tangent", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_retroreflection_tangent", "get_retroreflection_tangent");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "retroreflection_tangent_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_texture", "get_texture", TEXTURE_RETROREFLECTION_TANGENT);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "retroreflection_tangent_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_retroreflection_tangent_texture_channel", "get_retroreflection_tangent_texture_channel");
 
 	ADD_GROUP("Emission", "emission_");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "emission_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_feature", "get_feature", FEATURE_EMISSION);
@@ -4229,6 +4283,12 @@ BaseMaterial3D::BaseMaterial3D(bool p_orm) :
 	set_metallic_texture_channel(TEXTURE_CHANNEL_RED);
 	set_roughness_texture_channel(TEXTURE_CHANNEL_RED);
 	set_ao_texture_channel(TEXTURE_CHANNEL_RED);
+	set_shadow_falloff_texture_channel(TEXTURE_CHANNEL_RED);
+	set_falloff_factor_texture_channel(TEXTURE_CHANNEL_RED);
+	set_specular_falloff_texture_channel(TEXTURE_CHANNEL_RED);
+	set_retroreflection_texture_channel(TEXTURE_CHANNEL_RED);
+	set_retroreflection_falloff_texture_channel(TEXTURE_CHANNEL_RED);
+	set_retroreflection_tangent_texture_channel(TEXTURE_CHANNEL_RED);
 	set_refraction_texture_channel(TEXTURE_CHANNEL_RED);
 
 	set_grow(0.0);
