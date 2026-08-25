@@ -33,6 +33,7 @@
 #include "core/config/project_settings.h"
 #include "core/io/dir_access.h"
 #include "core/io/missing_resource.h"
+#include "core/object/class_db.h"
 #include "core/object/script_language.h"
 #include "scene/property_utils.h"
 
@@ -200,10 +201,16 @@ Ref<PackedScene> ResourceLoaderText::_parse_node_tag(VariantParser::ResourcePars
 
 			if (next_tag.fields.has("name")) {
 				name = packed_scene->get_state()->add_name(next_tag.fields["name"]);
+			} else {
+				error = ERR_FILE_CORRUPT;
+				error_text = "Missing 'name' field from node tag";
+				_printerr();
+				return Ref<PackedScene>();
 			}
 
 			if (next_tag.fields.has("parent")) {
 				NodePath np = next_tag.fields["parent"];
+				np.prepend_period();
 				PackedInt32Array np_id;
 				if (next_tag.fields.has("parent_id_path")) {
 					np_id = next_tag.fields["parent_id_path"];
@@ -419,18 +426,17 @@ Ref<PackedScene> ResourceLoaderText::_parse_node_tag(VariantParser::ResourcePars
 }
 
 void ResourceLoaderText::_count_resources() {
+	Ref<FileAccess> scan_f = FileAccess::open(f->get_path(), FileAccess::READ);
+	if (scan_f.is_null()) {
+		return;
+	}
+
 	resources_total = 0;
 	resource_current = 0;
 
-	// Save current file position to restore after counting.
-	uint64_t original_pos = f->get_position();
-
-	// Seek to beginning to count all resources.
-	f->seek(0);
-
 	bool has_main_resource = false;
-	while (!f->eof_reached()) {
-		String line = f->get_line().strip_edges();
+	while (!scan_f->eof_reached()) {
+		String line = scan_f->get_line().strip_edges();
 
 		// Only count resources that contribute to progress
 		// (ext_resources are loaded asynchronously and don't count).
@@ -446,9 +452,6 @@ void ResourceLoaderText::_count_resources() {
 			}
 		}
 	}
-
-	// Restore original file position.
-	f->seek(original_pos);
 }
 
 Error ResourceLoaderText::load() {
@@ -585,7 +588,7 @@ Error ResourceLoaderText::load() {
 			}
 		}
 
-		MissingResource *missing_resource = nullptr;
+		Ref<MissingResource> missing_resource;
 
 		if (res.is_null()) { //not reuse
 			Ref<Resource> cache = ResourceCache::get_ref(path);
@@ -601,7 +604,7 @@ Error ResourceLoaderText::load() {
 						missing_resource = memnew(MissingResource);
 						missing_resource->set_original_class(type);
 						missing_resource->set_recording_properties(true);
-						obj = missing_resource;
+						obj = missing_resource.ptr();
 					} else {
 						error_text = vformat("Can't create sub resource of type '%s'", type);
 						_printerr();
@@ -656,7 +659,7 @@ Error ResourceLoaderText::load() {
 				if (do_assign) {
 					bool set_valid = true;
 
-					if (value.get_type() == Variant::OBJECT && missing_resource == nullptr && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
+					if (value.get_type() == Variant::OBJECT && missing_resource.is_null() && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 						// If the property being set is a missing resource (and the parent is not),
 						// then setting it will most likely not work.
 						// Instead, save it as metadata.
@@ -709,7 +712,7 @@ Error ResourceLoaderText::load() {
 			}
 		}
 
-		if (missing_resource) {
+		if (missing_resource.is_valid()) {
 			missing_resource->set_recording_properties(false);
 		}
 
@@ -730,7 +733,7 @@ Error ResourceLoaderText::load() {
 			return error;
 		}
 
-		MissingResource *missing_resource = nullptr;
+		Ref<MissingResource> missing_resource;
 
 		resource = ResourceLoader::get_resource_ref_override(local_path);
 		if (resource.is_null()) {
@@ -747,7 +750,7 @@ Error ResourceLoaderText::load() {
 						missing_resource = memnew(MissingResource);
 						missing_resource->set_original_class(res_type);
 						missing_resource->set_recording_properties(true);
-						obj = missing_resource;
+						obj = missing_resource.ptr();
 					} else {
 						error_text = vformat("Can't create sub resource of type '%s'", res_type);
 						_printerr();
@@ -797,7 +800,7 @@ Error ResourceLoaderText::load() {
 			if (!assign.is_empty()) {
 				bool set_valid = true;
 
-				if (value.get_type() == Variant::OBJECT && missing_resource == nullptr && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
+				if (value.get_type() == Variant::OBJECT && missing_resource.is_null() && ResourceLoader::is_creating_missing_resources_if_class_unavailable_enabled()) {
 					// If the property being set is a missing resource (and the parent is not),
 					// then setting it will most likely not work.
 					// Instead, save it as metadata.
@@ -854,7 +857,7 @@ Error ResourceLoaderText::load() {
 			*progress = resource_current / float(resources_total);
 		}
 
-		if (missing_resource) {
+		if (missing_resource.is_valid()) {
 			missing_resource->set_recording_properties(false);
 		}
 
@@ -1125,6 +1128,17 @@ void ResourceLoaderText::open(Ref<FileAccess> p_f, bool p_skip_first_tag) {
 
 	lines = 1;
 	f = p_f;
+
+	// Skip UTF-8 BOM.
+	{
+		uint64_t pos = f->get_position();
+		if (pos == 0 && f->get_length() > 3) {
+			uint8_t bom[3] = {};
+			if (f->get_buffer(&bom[0], 3) != 3 || bom[0] != 0xef || bom[1] != 0xbb || bom[2] != 0xbf) {
+				f->seek(pos); // Wasn't a BOM; reset position.
+			}
+		}
+	}
 
 	stream.f = f;
 	is_scene = false;
@@ -1985,7 +1999,7 @@ Error ResourceFormatSaverTextInstance::save(const String &p_path, const Ref<Reso
 				}
 
 				String vars;
-				VariantWriter::write_to_string(value, vars, _write_resources, this, use_compat);
+				VariantWriter::write_to_string(value, vars, true, _write_resources, this, use_compat);
 				f->store_string(name.property_name_encode() + " = " + vars + "\n");
 			}
 		}
@@ -2063,14 +2077,14 @@ Error ResourceFormatSaverTextInstance::save(const String &p_path, const Ref<Reso
 			if (!instance_placeholder.is_empty()) {
 				String vars;
 				f->store_string(" instance_placeholder=");
-				VariantWriter::write_to_string(instance_placeholder, vars, _write_resources, this, use_compat);
+				VariantWriter::write_to_string(instance_placeholder, vars, true, _write_resources, this, use_compat);
 				f->store_string(vars);
 			}
 
 			if (instance.is_valid()) {
 				String vars;
 				f->store_string(" instance=");
-				VariantWriter::write_to_string(instance, vars, _write_resources, this, use_compat);
+				VariantWriter::write_to_string(instance, vars, true, _write_resources, this, use_compat);
 				f->store_string(vars);
 			}
 
@@ -2078,7 +2092,7 @@ Error ResourceFormatSaverTextInstance::save(const String &p_path, const Ref<Reso
 
 			for (int j = 0; j < state->get_node_property_count(i); j++) {
 				String vars;
-				VariantWriter::write_to_string(state->get_node_property_value(i, j), vars, _write_resources, this, use_compat);
+				VariantWriter::write_to_string(state->get_node_property_value(i, j), vars, true, _write_resources, this, use_compat);
 
 				f->store_string(String(state->get_node_property_name(i, j)).property_name_encode() + " = " + vars + "\n");
 			}
@@ -2126,7 +2140,7 @@ Error ResourceFormatSaverTextInstance::save(const String &p_path, const Ref<Reso
 			f->store_string(connstr);
 			if (binds.size()) {
 				String vars;
-				VariantWriter::write_to_string(binds, vars, _write_resources, this, use_compat);
+				VariantWriter::write_to_string(binds, vars, true, _write_resources, this, use_compat);
 				f->store_string(" binds= " + vars);
 			}
 

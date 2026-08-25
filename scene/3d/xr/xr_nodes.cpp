@@ -30,7 +30,11 @@
 
 #include "xr_nodes.h"
 
+#include "core/config/engine.h"
 #include "core/config/project_settings.h"
+#include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
+#include "scene/main/scene_tree.h"
 #include "scene/main/viewport.h"
 #include "servers/xr/xr_interface.h"
 
@@ -101,10 +105,10 @@ PackedStringArray XRCamera3D::get_configuration_warnings() const {
 		if (parent && origin == nullptr) {
 			warnings.push_back(RTR("XRCamera3D may not function as expected without an XROrigin3D node as its parent."));
 		};
+	}
 
-		if (SceneTree::is_fti_enabled_in_project() && is_physics_interpolated()) {
-			warnings.push_back(RTR("XRCamera3D should have physics_interpolation_mode set to OFF in order to avoid jitter."));
-		}
+	if (SceneTree::is_fti_enabled_in_project() && is_physics_interpolated()) {
+		warnings.push_back(RTR("XRCamera3D should have physics_interpolation_mode set to OFF in order to avoid jitter."));
 	}
 
 	return warnings;
@@ -510,10 +514,10 @@ PackedStringArray XRNode3D::get_configuration_warnings() const {
 		if (pose_name == "") {
 			warnings.push_back(RTR("No pose is set."));
 		}
+	}
 
-		if (SceneTree::is_fti_enabled_in_project() && is_physics_interpolated()) {
-			warnings.push_back(RTR("XRNode3D should have physics_interpolation_mode set to OFF in order to avoid jitter."));
-		}
+	if (SceneTree::is_fti_enabled_in_project() && is_physics_interpolated()) {
+		warnings.push_back(RTR("XRNode3D should have physics_interpolation_mode set to OFF in order to avoid jitter."));
 	}
 
 	return warnings;
@@ -530,10 +534,10 @@ void XRController3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_tracker_hand"), &XRController3D::get_tracker_hand);
 
-	ADD_SIGNAL(MethodInfo("button_pressed", PropertyInfo(Variant::STRING, "name")));
-	ADD_SIGNAL(MethodInfo("button_released", PropertyInfo(Variant::STRING, "name")));
-	ADD_SIGNAL(MethodInfo("input_float_changed", PropertyInfo(Variant::STRING, "name"), PropertyInfo(Variant::FLOAT, "value")));
-	ADD_SIGNAL(MethodInfo("input_vector2_changed", PropertyInfo(Variant::STRING, "name"), PropertyInfo(Variant::VECTOR2, "value")));
+	ADD_SIGNAL(MethodInfo("button_pressed", PropertyInfo(Variant::STRING, "action_name")));
+	ADD_SIGNAL(MethodInfo("button_released", PropertyInfo(Variant::STRING, "action_name")));
+	ADD_SIGNAL(MethodInfo("input_float_changed", PropertyInfo(Variant::STRING, "action_name"), PropertyInfo(Variant::FLOAT, "value")));
+	ADD_SIGNAL(MethodInfo("input_vector2_changed", PropertyInfo(Variant::STRING, "action_name"), PropertyInfo(Variant::VECTOR2, "value")));
 	ADD_SIGNAL(MethodInfo("profile_changed", PropertyInfo(Variant::STRING, "role")));
 }
 
@@ -691,9 +695,12 @@ PackedStringArray XROrigin3D::get_configuration_warnings() const {
 				has_camera = true;
 			}
 		}
-
 		if (!has_camera) {
 			warnings.push_back(RTR("XROrigin3D requires an XRCamera3D child node."));
+		}
+
+		if (!get_scale().is_equal_approx(Vector3(1, 1, 1))) {
+			warnings.push_back(RTR("Changing the scale on the XROrigin3D node is not supported. Change the World Scale instead."));
 		}
 	}
 

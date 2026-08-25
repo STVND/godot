@@ -80,6 +80,7 @@ public:
 		int inspector_property_height = 28;
 		float subresource_hue_tint = 0.0;
 		float dragging_hover_wait_msec = 0;
+		int max_sticky_tree_items = 5;
 
 		// Make sure to keep those in sync with the definitions in the editor settings.
 		const float default_icon_saturation = 2.0;
@@ -110,6 +111,7 @@ public:
 		Color contrast_color_2;
 		Color highlight_color;
 		Color highlight_disabled_color;
+		Color info_color;
 		Color success_color;
 		Color warning_color;
 		Color error_color;
@@ -157,6 +159,10 @@ public:
 		Color button_border_hover_color;
 		Color button_border_pressed_color;
 
+		Color flat_button_pressed_color;
+		Color flat_button_hover_pressed_color;
+		Color flat_button_hover_color;
+
 		Color shadow_color;
 		Color selection_color;
 		Color disabled_border_color;
@@ -176,6 +182,7 @@ public:
 
 		Ref<StyleBoxFlat> flat_button;
 		Ref<StyleBoxFlat> flat_button_pressed;
+		Ref<StyleBoxFlat> flat_button_hover_pressed;
 		Ref<StyleBoxFlat> flat_button_hover;
 
 		Ref<StyleBoxFlat> popup_style;

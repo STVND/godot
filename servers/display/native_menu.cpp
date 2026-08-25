@@ -30,7 +30,8 @@
 
 #include "native_menu.h"
 
-#include "scene/resources/image_texture.h"
+#include "core/object/class_db.h"
+#include "scene/resources/texture.h"
 
 NativeMenu *NativeMenu::singleton = nullptr;
 
@@ -76,6 +77,7 @@ void NativeMenu::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("find_item_index_with_submenu", "rid", "submenu_rid"), &NativeMenu::find_item_index_with_submenu);
 
 	ClassDB::bind_method(D_METHOD("is_item_checked", "rid", "idx"), &NativeMenu::is_item_checked);
+	ClassDB::bind_method(D_METHOD("is_item_indeterminate", "rid", "idx"), &NativeMenu::is_item_indeterminate);
 	ClassDB::bind_method(D_METHOD("is_item_checkable", "rid", "idx"), &NativeMenu::is_item_checkable);
 	ClassDB::bind_method(D_METHOD("is_item_radio_checkable", "rid", "idx"), &NativeMenu::is_item_radio_checkable);
 	ClassDB::bind_method(D_METHOD("get_item_callback", "rid", "idx"), &NativeMenu::get_item_callback);
@@ -93,6 +95,7 @@ void NativeMenu::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_item_indentation_level", "rid", "idx"), &NativeMenu::get_item_indentation_level);
 
 	ClassDB::bind_method(D_METHOD("set_item_checked", "rid", "idx", "checked"), &NativeMenu::set_item_checked);
+	ClassDB::bind_method(D_METHOD("set_item_indeterminate", "rid", "idx", "indeterminate"), &NativeMenu::set_item_indeterminate);
 	ClassDB::bind_method(D_METHOD("set_item_checkable", "rid", "idx", "checkable"), &NativeMenu::set_item_checkable);
 	ClassDB::bind_method(D_METHOD("set_item_radio_checkable", "rid", "idx", "checkable"), &NativeMenu::set_item_radio_checkable);
 	ClassDB::bind_method(D_METHOD("set_item_callback", "rid", "idx", "callback"), &NativeMenu::set_item_callback);
@@ -109,6 +112,7 @@ void NativeMenu::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_item_max_states", "rid", "idx", "max_states"), &NativeMenu::set_item_max_states);
 	ClassDB::bind_method(D_METHOD("set_item_icon", "rid", "idx", "icon"), &NativeMenu::set_item_icon);
 	ClassDB::bind_method(D_METHOD("set_item_indentation_level", "rid", "idx", "level"), &NativeMenu::set_item_indentation_level);
+	ClassDB::bind_method(D_METHOD("set_item_index", "rid", "idx", "target_idx"), &NativeMenu::set_item_index);
 
 	ClassDB::bind_method(D_METHOD("get_item_count", "rid"), &NativeMenu::get_item_count);
 	ClassDB::bind_method(D_METHOD("is_system_menu", "rid"), &NativeMenu::is_system_menu);
@@ -301,6 +305,11 @@ bool NativeMenu::is_item_checked(const RID &p_rid, int p_idx) const {
 	return false;
 }
 
+bool NativeMenu::is_item_indeterminate(const RID &p_rid, int p_idx) const {
+	WARN_PRINT("Global menus are not supported on this platform.");
+	return false;
+}
+
 bool NativeMenu::is_item_checkable(const RID &p_rid, int p_idx) const {
 	WARN_PRINT("Global menus are not supported on this platform.");
 	return false;
@@ -380,6 +389,10 @@ void NativeMenu::set_item_checked(const RID &p_rid, int p_idx, bool p_checked) {
 	WARN_PRINT("Global menus are not supported on this platform.");
 }
 
+void NativeMenu::set_item_indeterminate(const RID &p_rid, int p_idx, bool p_indeterminate) {
+	WARN_PRINT("Global menus are not supported on this platform.");
+}
+
 void NativeMenu::set_item_checkable(const RID &p_rid, int p_idx, bool p_checkable) {
 	WARN_PRINT("Global menus are not supported on this platform.");
 }
@@ -442,6 +455,11 @@ void NativeMenu::set_item_icon(const RID &p_rid, int p_idx, const Ref<Texture2D>
 
 void NativeMenu::set_item_indentation_level(const RID &p_rid, int p_idx, int p_level) {
 	WARN_PRINT("Global menus are not supported on this platform.");
+}
+
+int NativeMenu::set_item_index(const RID &p_rid, int p_idx, int p_target_idx) {
+	WARN_PRINT("Global menus are not supported on this platform.");
+	return -1;
 }
 
 int NativeMenu::get_item_count(const RID &p_rid) const {

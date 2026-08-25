@@ -30,6 +30,8 @@
 
 #include "graph_element.h"
 
+#include "core/config/engine.h"
+#include "core/object/class_db.h"
 #include "scene/gui/graph_edit.h"
 #include "scene/theme/theme_db.h"
 
@@ -54,22 +56,6 @@ void GraphElement::_resort() {
 		}
 		fit_child_in_rect(child, Rect2(Point2(), size));
 	}
-}
-
-Size2 GraphElement::get_minimum_size() const {
-	Size2 minsize;
-	for (int i = 0; i < get_child_count(); i++) {
-		Control *child = as_sortable_control(get_child(i), SortableVisibilityMode::IGNORE);
-		if (!child) {
-			continue;
-		}
-
-		Size2i size = child->get_combined_minimum_size();
-
-		minsize = minsize.max(size);
-	}
-
-	return minsize;
 }
 
 void GraphElement::_notification(int p_what) {

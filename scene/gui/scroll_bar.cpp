@@ -30,8 +30,12 @@
 
 #include "scroll_bar.h"
 
+#include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
 #include "scene/main/window.h"
 #include "scene/theme/theme_db.h"
+#include "servers/display/accessibility_server.h"
+#include "servers/display/display_server.h"
 
 bool ScrollBar::focus_by_default = false;
 
@@ -45,6 +49,37 @@ void ScrollBar::gui_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseMotion> m = p_event;
 
 	Ref<InputEventMouseButton> b = p_event;
+
+	Ref<InputEventPanGesture> pg = p_event;
+
+	if (pg.is_valid()) {
+		accept_event();
+
+		if (orientation == HORIZONTAL) {
+			if (pg->get_delta().x != 0) {
+				if (pg->get_delta().x < 0) {
+					scroll(-MAX(Math::abs(pg->get_delta().x), get_step()));
+				}
+				if (pg->get_delta().x > 0) {
+					scroll(MAX(pg->get_delta().x, get_step()));
+				}
+			} else if (pg->get_delta().y != 0) {
+				if (pg->get_delta().y < 0) {
+					scroll(-MAX(Math::abs(pg->get_delta().y), get_step()));
+				}
+				if (pg->get_delta().y > 0) {
+					scroll(MAX(pg->get_delta().y, get_step()));
+				}
+			}
+		} else {
+			if (pg->get_delta().y < 0) {
+				scroll(-MAX(Math::abs(pg->get_delta().y), get_step()));
+			}
+			if (pg->get_delta().y > 0) {
+				scroll(MAX(pg->get_delta().y, get_step()));
+			}
+		}
+	}
 
 	if (b.is_valid()) {
 		accept_event();
@@ -228,7 +263,7 @@ void ScrollBar::_notification(int p_what) {
 			RID ae = get_accessibility_element();
 			ERR_FAIL_COND(ae.is_null());
 
-			DisplayServer::get_singleton()->accessibility_update_set_role(ae, DisplayServer::AccessibilityRole::ROLE_SCROLL_BAR);
+			AccessibilityServer::get_singleton()->update_set_role(ae, AccessibilityServerEnums::AccessibilityRole::ROLE_SCROLL_BAR);
 		} break;
 
 		case NOTIFICATION_DRAW: {
@@ -338,7 +373,7 @@ void ScrollBar::_notification(int p_what) {
 			if (scrolling) {
 				if (get_value() != target_scroll) {
 					double target = target_scroll - get_value();
-					double dist = std::abs(target);
+					double dist = Math::abs(target);
 					double vel = ((target / dist) * 500) * get_process_delta_time();
 
 					if (Math::abs(vel) >= dist) {
@@ -548,19 +583,19 @@ void ScrollBar::_drag_node_input(const Ref<InputEvent> &p_input) {
 		return;
 	}
 
-	Ref<InputEventMouseButton> mb = p_input;
+	if (p_input->get_device() == InputEvent::DEVICE_ID_EMULATION) {
+		return;
+	}
 
-	if (mb.is_valid()) {
-		if (mb->get_button_index() != MouseButton::LEFT) {
-			return;
-		}
+	Ref<InputEventScreenTouch> touch = p_input;
 
-		if (mb->is_pressed()) {
+	if (touch.is_valid()) {
+		if (touch->is_pressed()) {
 			drag_node_speed = Vector2();
 			drag_node_accum = Vector2();
 			last_drag_node_accum = Vector2();
 			drag_node_from = Vector2(orientation == HORIZONTAL ? get_value() : 0, orientation == VERTICAL ? get_value() : 0);
-			drag_node_touching = DisplayServer::get_singleton()->is_touchscreen_available();
+			drag_node_touching = true;
 			drag_node_touching_deaccel = false;
 			time_since_motion = 0;
 
@@ -582,11 +617,11 @@ void ScrollBar::_drag_node_input(const Ref<InputEvent> &p_input) {
 		}
 	}
 
-	Ref<InputEventMouseMotion> mm = p_input;
+	Ref<InputEventScreenDrag> s_drag = p_input;
 
-	if (mm.is_valid()) {
+	if (s_drag.is_valid()) {
 		if (drag_node_touching && !drag_node_touching_deaccel) {
-			Vector2 motion = mm->get_relative();
+			Vector2 motion = s_drag->get_relative();
 
 			drag_node_accum -= motion;
 			Vector2 diff = drag_node_from + drag_node_accum;

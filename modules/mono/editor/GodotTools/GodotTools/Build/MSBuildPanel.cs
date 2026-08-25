@@ -88,7 +88,7 @@ namespace GodotTools.Build
             if (Internal.IsAssembliesReloadingNeeded())
             {
                 BuildManager.UpdateLastValidBuildDateTime();
-                Internal.ReloadAssemblies(softReload: false);
+                Internal.ReloadAssemblies();
             }
         }
 
@@ -109,7 +109,7 @@ namespace GodotTools.Build
             if (Internal.IsAssembliesReloadingNeeded())
             {
                 BuildManager.UpdateLastValidBuildDateTime();
-                Internal.ReloadAssemblies(softReload: false);
+                Internal.ReloadAssemblies();
             }
         }
 
@@ -204,7 +204,7 @@ namespace GodotTools.Build
         {
             Name = "MSBuild".TTR();
             IconName = "BuildCSharp";
-            DefaultSlot = EditorPlugin.DockSlot.Bottom;
+            DefaultSlot = EditorDock.DockSlot.Bottom;
             AvailableLayouts = DockLayout.Horizontal | DockLayout.Floating;
             Global = false;
             Transient = true;

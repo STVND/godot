@@ -138,6 +138,18 @@ bool sc_multimesh_has_custom_data() {
 	return ((sc_packed_1() >> 3) & 1U) != 0;
 }
 
+bool sc_fog_use_legacy_blending() {
+	return ((sc_packed_1() >> 4) & 1U) != 0;
+}
+
+bool sc_cluster_has_area_light() {
+	return ((sc_packed_1() >> 5) & 1U) != 0;
+}
+
+bool sc_use_lightmap_specular() {
+	return ((sc_packed_1() >> 6) & 1U) != 0;
+}
+
 float sc_luminance_multiplier() {
 	// Not used in clustered renderer but we share some code with the mobile renderer that requires this.
 	return 1.0;
@@ -196,12 +208,17 @@ layout(set = 0, binding = 4, std430) restrict readonly buffer SpotLights {
 }
 spot_lights;
 
-layout(set = 0, binding = 5, std430) restrict readonly buffer ReflectionProbeData {
+layout(set = 0, binding = 5, std430) restrict readonly buffer AreaLights {
+	LightData data[];
+}
+area_lights;
+
+layout(set = 0, binding = 6, std430) restrict readonly buffer ReflectionProbeData {
 	ReflectionData data[];
 }
 reflections;
 
-layout(set = 0, binding = 6, std140) uniform DirectionalLights {
+layout(set = 0, binding = 7, std140) uniform DirectionalLights {
 	DirectionalLightData data[MAX_DIRECTIONAL_LIGHT_DATA_STRUCTS];
 }
 directional_lights;
@@ -215,13 +232,13 @@ directional_lights;
 #define LIGHTMAP_SHADOWMASK_MODE_ONLY 3
 
 struct Lightmap {
-	mat3 normal_xform;
+	mat3x4 normal_xform_and_specular_intensity; // "normal_xform" is the 3x3 matrix. "specular_intensity" is the 4th row of the 1st column.
 	vec2 light_texture_size;
 	float exposure_normalization;
 	uint flags;
 };
 
-layout(set = 0, binding = 7, std140) restrict readonly buffer Lightmaps {
+layout(set = 0, binding = 8, std140) restrict readonly buffer Lightmaps {
 	Lightmap data[];
 }
 lightmaps;
@@ -230,20 +247,20 @@ struct LightmapCapture {
 	vec4 sh[9];
 };
 
-layout(set = 0, binding = 8, std140) restrict readonly buffer LightmapCaptures {
+layout(set = 0, binding = 9, std140) restrict readonly buffer LightmapCaptures {
 	LightmapCapture data[];
 }
 lightmap_captures;
 
-layout(set = 0, binding = 9) uniform texture2D decal_atlas;
-layout(set = 0, binding = 10) uniform texture2D decal_atlas_srgb;
+layout(set = 0, binding = 10) uniform texture2D decal_atlas;
+layout(set = 0, binding = 11) uniform texture2D decal_atlas_srgb;
 
-layout(set = 0, binding = 11, std430) restrict readonly buffer Decals {
+layout(set = 0, binding = 12, std430) restrict readonly buffer Decals {
 	DecalData data[];
 }
 decals;
 
-layout(set = 0, binding = 12, std430) restrict readonly buffer GlobalShaderUniformData {
+layout(set = 0, binding = 13, std430) restrict readonly buffer GlobalShaderUniformData {
 	vec4 data[];
 }
 global_shader_uniforms;
@@ -257,7 +274,7 @@ struct SDFVoxelGICascadeData {
 	float exposure_normalization;
 };
 
-layout(set = 0, binding = 13, std140) uniform SDFGI {
+layout(set = 0, binding = 14, std140) uniform SDFGI {
 	vec3 grid_size;
 	uint max_cascades;
 
@@ -285,12 +302,17 @@ layout(set = 0, binding = 13, std140) uniform SDFGI {
 }
 sdfgi;
 
-layout(set = 0, binding = 14) uniform sampler DEFAULT_SAMPLER_LINEAR_WITH_MIPMAPS_CLAMP;
+layout(set = 0, binding = 15) uniform sampler DEFAULT_SAMPLER_LINEAR_WITH_MIPMAPS_CLAMP;
 
-layout(set = 0, binding = 15) uniform texture2D best_fit_normal_texture;
+layout(set = 0, binding = 16) uniform texture2D best_fit_normal_texture;
 
-layout(set = 0, binding = 16) uniform texture2D dfg;
+layout(set = 0, binding = 17) uniform texture2D dfg;
 
+layout(set = 0, binding = 18) uniform texture2D ltc_lut1;
+
+layout(set = 0, binding = 19) uniform texture2D ltc_lut2;
+
+layout(set = 0, binding = 20) uniform texture2D area_light_atlas;
 /* Set 1: Render Pass (changes per render pass) */
 
 layout(set = 1, binding = 0, std140) uniform SceneDataBlock {
@@ -474,9 +496,9 @@ vec4 normal_roughness_compatibility(vec4 p_normal_roughness) {
 }
 
 // https://google.github.io/filament/Filament.html#toc5.3.4.7
-// Note: The roughness value is inverted
-vec3 prefiltered_dfg(float lod, float NoV) {
-	return textureLod(sampler2D(dfg, SAMPLER_LINEAR_CLAMP), vec2(NoV, 1.0 - lod), 0.0).rgb;
+// Note: We have an inverted Y-axis in the DFG; therefore, the roughness value must be inverted.
+vec2 prefiltered_dfg(float lod, float NoV) {
+	return textureLod(sampler2D(dfg, SAMPLER_LINEAR_CLAMP), vec2(NoV, 1.0 - lod), 0.0).rg;
 }
 
 // Compute multiscatter compensation

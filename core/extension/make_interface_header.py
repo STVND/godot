@@ -58,6 +58,9 @@ extern "C" {
             kind = type["kind"]
 
             check_type(kind, type, valid_data_types)
+            if type["name"] in BASE_TYPES:
+                raise Exception(f"Type '{type['name']}' shadows a built-in type")
+            check_duplicate(type["name"], valid_data_types, "type")
             valid_data_types[type["name"]] = type
 
             if "deprecated" in type:
@@ -85,7 +88,7 @@ extern "C" {
                 check_allowed_keys(type, ["name", "kind", "values"], ["is_bitfield", "description", "deprecated"])
                 write_enum_type(file, type)
             elif kind == "function":
-                check_allowed_keys(type, ["name", "kind", "return_value", "arguments"], ["description", "deprecated"])
+                check_allowed_keys(type, ["name", "kind", "arguments"], ["return_value", "description", "deprecated"])
                 write_function_type(file, type)
             elif kind == "struct":
                 check_allowed_keys(type, ["name", "kind", "members"], ["description", "deprecated"])
@@ -108,9 +111,10 @@ extern "C" {
             check_type("function", interface, valid_data_types)
             check_allowed_keys(
                 interface,
-                ["name", "return_value", "arguments", "since", "description"],
-                ["see", "legacy_type_name", "deprecated"],
+                ["name", "arguments", "since", "description"],
+                ["return_value", "see", "legacy_type_name", "deprecated"],
             )
+            check_duplicate(interface["name"], valid_interfaces, "interface function")
             valid_interfaces[interface["name"]] = interface
             if "deprecated" in interface:
                 check_allowed_keys(interface["deprecated"], ["since"], ["message", "replace_with"])
@@ -158,6 +162,13 @@ def check_formatting(buffer, data, filename):
         raise Exception(f"Formatting issues in {filename}")
 
 
+# Note: most symbols (enum values, struct members, argument names) already cause a compile error if duplicated.
+# However, some C/C++ compilers allow duplicate typedefs if they're identical -> check those in Python.
+def check_duplicate(name, defined, what):
+    if name in defined:
+        raise Exception(f"Found duplicate {what} '{name}'")
+
+
 def check_allowed_keys(data, required, optional=[]):
     keys = data.keys()
     allowed = required + optional
@@ -200,20 +211,27 @@ def format_type_and_name(type, name=None):
     return ret
 
 
+def is_valid_type(type, valid_data_types):
+    if type in ["void", "const void"]:
+        # The "void" type can only be used with the pointer modifier.
+        return False
+    return base_type_name(type) in valid_data_types
+
+
 def check_type(kind, type, valid_data_types):
     if kind == "alias":
-        if base_type_name(type["type"]) not in valid_data_types:
+        if not is_valid_type(type["type"], valid_data_types):
             raise UnknownTypeError(type["type"], type["name"])
     elif kind == "struct":
         for member in type["members"]:
-            if base_type_name(member["type"]) not in valid_data_types:
+            if not is_valid_type(member["type"], valid_data_types):
                 raise UnknownTypeError(member["type"], type["name"], member["name"])
     elif kind == "function":
         for arg in type["arguments"]:
-            if base_type_name(arg["type"]) not in valid_data_types:
+            if not is_valid_type(arg["type"], valid_data_types):
                 raise UnknownTypeError(arg["type"], type["name"], arg.get("name"))
         if "return_value" in type:
-            if base_type_name(type["return_value"]["type"]) not in valid_data_types:
+            if not is_valid_type(type["return_value"]["type"], valid_data_types):
                 raise UnknownTypeError(type["return_value"]["type"], type["name"])
 
 
@@ -277,9 +295,8 @@ def make_args_text(args):
 def write_function_type(file, fn):
     args_text = make_args_text(fn["arguments"]) if ("arguments" in fn) else ""
     name_and_args = f"(*{fn['name']})({args_text})"
-    file.write(
-        f"typedef {format_type_and_name(fn['return_value']['type'], name_and_args)};{make_deprecated_comment_for_type(fn)}\n"
-    )
+    return_type = fn["return_value"]["type"] if "return_value" in fn else "void"
+    file.write(f"typedef {format_type_and_name(return_type, name_and_args)};{make_deprecated_comment_for_type(fn)}\n")
 
 
 def write_struct_type(file, struct):
@@ -318,7 +335,7 @@ def write_interface(file, interface):
             arg_doc = " ".join(arg["description"])
             doc.append(f"@param {arg['name']} {arg_doc}")
 
-    if "return_value" in interface and interface["return_value"]["type"] != "void":
+    if "return_value" in interface:
         if "description" not in interface["return_value"]:
             raise Exception(f"Interface function {interface['name']} is missing docs for return value")
         ret_doc = " ".join(interface["return_value"]["description"])

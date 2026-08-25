@@ -44,8 +44,6 @@ protected:
 
 	Ref<FileAccess> file_checker;
 
-	Array native_member_completions;
-
 private:
 	Array find_symbols(const LSP::TextDocumentPositionParams &p_location, List<const LSP::DocumentSymbol *> &r_list);
 	void notify_client_show_symbol(const LSP::DocumentSymbol *symbol);
@@ -62,21 +60,17 @@ public:
 
 	Variant nativeSymbol(const Dictionary &p_params);
 	Array documentSymbol(const Dictionary &p_params);
+	Array documentHighlight(const Dictionary &p_params);
 	Array completion(const Dictionary &p_params);
 	Dictionary resolve(const Dictionary &p_params);
 	Dictionary rename(const Dictionary &p_params);
 	Variant prepareRename(const Dictionary &p_params);
 	Array references(const Dictionary &p_params);
-	Array foldingRange(const Dictionary &p_params);
-	Array codeLens(const Dictionary &p_params);
 	Array documentLink(const Dictionary &p_params);
-	Array colorPresentation(const Dictionary &p_params);
 	Variant hover(const Dictionary &p_params);
 	Array definition(const Dictionary &p_params);
 	Variant declaration(const Dictionary &p_params);
 	Variant signatureHelp(const Dictionary &p_params);
-
-	void initialize();
 
 	GDScriptTextDocument();
 };
